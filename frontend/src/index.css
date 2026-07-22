@@ -1,0 +1,268 @@
+/* ==========================================================================
+   ASMAW DESIGN SYSTEM - VANILLA CSS
+   ========================================================================== */
+
+:root {
+  /* Colors - Premium Dark/Gold Theme */
+  --color-base: #fafafa;
+  --color-surface: #ffffff;
+  --color-dark: #121212;
+  --color-dark-surface: #1e1e1e;
+  
+  --color-primary: #121212; /* Đen tuyền sang trọng */
+  --color-primary-light: #2c2c2c;
+  
+  --color-accent: #cfae70; /* Vàng Gold cao cấp */
+  --color-accent-hover: #b8985c;
+  --color-accent-light: #f6efe1;
+
+  --color-text-main: #1a1a1a;
+  --color-text-muted: #666666;
+  --color-text-light: #ffffff;
+
+  --color-error: #d73a49;
+  --color-success: #28a745;
+  --color-border: #e6e6e6;
+  
+  /* Typography */
+  --font-sans: 'Outfit', sans-serif;
+  --font-serif: 'Playfair Display', serif;
+  
+  /* Layout & Spacing */
+  --max-width: 1280px;
+  --header-height: 80px;
+  
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2rem;
+  --space-6: 3rem;
+  --space-8: 4rem;
+
+  /* Radius & Shadows */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+  
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+  
+  /* Transitions */
+  --trans-fast: 0.15s ease;
+  --trans-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --trans-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   RESET & BASE
+   ========================================================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-text-main);
+  background-color: var(--color-base);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: var(--space-3);
+  color: var(--color-primary);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--trans-fast);
+}
+
+a:hover {
+  color: var(--color-accent);
+}
+
+button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ==========================================================================
+   LAYOUT UTILITIES
+   ========================================================================== */
+.container {
+  width: 100%;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 var(--space-4);
+}
+
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.gap-2 { gap: var(--space-2); }
+.gap-4 { gap: var(--space-4); }
+
+.grid { display: grid; }
+.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* ==========================================================================
+   UI COMPONENTS
+   ========================================================================== */
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 2rem;
+  font-weight: 500;
+  font-size: 0.95rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: all var(--trans-normal);
+  border-radius: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-text-light);
+  border: 1px solid var(--color-primary);
+}
+.btn-primary:hover {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-surface);
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+}
+.btn-outline:hover {
+  border-color: var(--color-primary);
+}
+
+.btn-gold {
+  background-color: var(--color-accent);
+  color: var(--color-surface);
+}
+.btn-gold:hover {
+  background-color: var(--color-accent-hover);
+}
+
+/* Inputs */
+.form-group {
+  margin-bottom: var(--space-4);
+}
+.form-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: var(--space-2);
+  color: var(--color-text-muted);
+}
+.form-input {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  transition: border-color var(--trans-fast);
+  outline: none;
+}
+.form-input:focus {
+  border-color: var(--color-accent);
+}
+
+/* Glassmorphism Cards */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-5);
+}
+
+/* Product Card */
+.product-card {
+  group: product;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  transition: transform var(--trans-normal), box-shadow var(--trans-normal);
+}
+.product-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+.product-image-wrap {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 3/4;
+  background-color: #f5f5f5;
+}
+.product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--trans-slow);
+}
+.product-card:hover .product-image {
+  transform: scale(1.05);
+}
+.product-info {
+  padding: var(--space-3);
+  text-align: center;
+}
+.product-brand {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.25rem;
+}
+.product-name {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  color: var(--color-primary);
+}
+.product-price {
+  font-weight: 500;
+  color: var(--color-accent);
+}
+.product-price-old {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin-left: 0.5rem;
+  font-weight: 400;
+}
