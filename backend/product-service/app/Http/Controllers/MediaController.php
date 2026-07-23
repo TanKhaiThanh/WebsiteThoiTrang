@@ -36,4 +36,19 @@ class MediaController extends Controller
 
         return response()->json(['message' => 'Upload successful', 'urls' => $urls]);
     }
+
+    public function serveImage($path)
+    {
+        $filePath = storage_path('app/public/uploads/products/' . $path);
+        
+        if (!\Illuminate\Support\Facades\File::exists($filePath)) {
+            return response()->json(['error' => 'Image not found: ' . $path], 404);
+        }
+
+        $mimeType = \Illuminate\Support\Facades\File::mimeType($filePath);
+        return response()->file($filePath, [
+            'Content-Type' => $mimeType,
+            'Cache-Control' => 'public, max-age=86400'
+        ]);
+    }
 }

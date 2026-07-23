@@ -8,7 +8,10 @@ import {
     Ticket,
     RefreshCw,
     Warehouse,
-    LogOut
+    LogOut,
+    Store,
+    Image,
+    Star
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -20,6 +23,8 @@ const menuItems = [
     { name: 'Đổi / Trả', path: '/admin/returns', icon: <RefreshCw size={20} /> },
     { name: 'Khuyến Mãi', path: '/admin/coupons', icon: <Ticket size={20} /> },
     { name: 'Người Dùng', path: '/admin/users', icon: <Users size={20} /> },
+    { name: 'Banners', path: '/admin/banners', icon: <Image size={20} /> },
+    { name: 'Đánh Giá', path: '/admin/reviews', icon: <Star size={20} /> },
 ];
 
 const AdminLayout = () => {
@@ -58,17 +63,25 @@ const AdminLayout = () => {
                     })}
                 </nav>
 
-                <div style={{ padding: '1rem', borderTop: '1px solid var(--color-border)' }}>
+                <div style={{ padding: '1rem', borderTop: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <Link
+                        to="/"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#2563eb', width: '100%', padding: '0.5rem', fontWeight: 500, borderRadius: '6px', transition: 'background-color 0.2s', textDecoration: 'none' }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#eff6ff'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                        <Store size={20} />
+                        Quay về cửa hàng
+                    </Link>
                     <button
                         onClick={logout}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-error)', width: '100%', padding: '0.5rem', fontWeight: 500 }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-error)', width: '100%', padding: '0.5rem', fontWeight: 500, borderRadius: '6px', cursor: 'pointer', transition: 'background-color 0.2s', border: 'none', background: 'transparent' }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
                         <LogOut size={20} />
                         Đăng xuất
                     </button>
-                    <Link to="/" style={{ display: 'block', textAlign: 'center', marginTop: '1rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                        Quay về cửa hàng
-                    </Link>
                 </div>
             </aside>
 

@@ -12,11 +12,13 @@ Route::any('/auth/{path}', [\App\Http\Controllers\GatewayController::class, 'pro
 Route::any('/users/{path?}', [\App\Http\Controllers\GatewayController::class, 'proxyToUser'])->where('path', '.*');
 Route::any('/notifications/{path?}', [\App\Http\Controllers\GatewayController::class, 'proxyToUser'])->where('path', '.*');
 
-// Products & Categories & Inventory & Media → product-service
+// Products & Categories & Inventory & Media & Banners & Reviews → product-service
 Route::any('/products/{path?}', [\App\Http\Controllers\GatewayController::class, 'proxyToProduct'])->where('path', '.*');
 Route::any('/categories/{path?}', [\App\Http\Controllers\GatewayController::class, 'proxyToProduct'])->where('path', '.*');
 Route::any('/inventory/{path?}', [\App\Http\Controllers\GatewayController::class, 'proxyToProduct'])->where('path', '.*');
 Route::any('/media/{path?}', [\App\Http\Controllers\GatewayController::class, 'proxyToProduct'])->where('path', '.*');
+Route::any('/banners/{path?}', [\App\Http\Controllers\GatewayController::class, 'proxyToProduct'])->where('path', '.*');
+Route::any('/reviews/{path?}', [\App\Http\Controllers\GatewayController::class, 'proxyToProduct'])->where('path', '.*');
 
 // Cart & Orders & Payments & Shipping & Returns → order-service
 Route::any('/cart/{path?}', [\App\Http\Controllers\GatewayController::class, 'proxyToOrder'])->where('path', '.*');

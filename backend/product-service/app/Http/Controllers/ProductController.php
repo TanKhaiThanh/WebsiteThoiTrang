@@ -40,9 +40,50 @@ class ProductController extends Controller
             $query->where('price', '<=', $request->max_price);
         }
 
+        // Filter by variants (sizes and colors)
+        if ($request->has('sizes')) {
+            $sizes = is_array($request->sizes) ? $request->sizes : explode(',', $request->sizes);
+            $query->whereHas('variants', function ($q) use ($sizes) {
+                $q->whereIn('size', $sizes);
+            });
+        }
+        if ($request->has('colors')) {
+            $colors = is_array($request->colors) ? $request->colors : explode(',', $request->colors);
+            $query->whereHas('variants', function ($q) use ($colors) {
+                $q->whereIn('color', $colors);
+            });
+        }
+
         // Featured
         if ($request->boolean('featured')) {
             $query->where('is_featured', true);
+        }
+
+        // Sort
+        $sortBy = $request->get('sort', 'created_at');
+        $sortDir = $request->get('order', 'desc');
+        $query->orderBy($sortBy, $sortDir);
+
+        return response()->json($query->paginate($request->get('per_page', 12)));
+    }
+
+    public function adminIndex(Request $request)
+    {
+        $query = Product::with(['category', 'primaryImage', 'variants.inventory']);
+
+        // Filter by category
+        if ($request->has('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        // Search
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('brand', 'like', "%{$search}%");
+            });
         }
 
         // Sort
@@ -163,5 +204,23 @@ class ProductController extends Controller
 
         $product->delete();
         return response()->json(['message' => 'Product deleted']);
+    }
+
+    public function getFilters()
+    {
+        $sizes = \App\Models\ProductVariant::whereNotNull('size')
+            ->distinct()
+            ->orderBy('size')
+            ->pluck('size');
+
+        $colors = \App\Models\ProductVariant::whereNotNull('color')
+            ->distinct()
+            ->orderBy('color')
+            ->pluck('color');
+
+        return response()->json([
+            'sizes' => $sizes,
+            'colors' => $colors,
+        ]);
     }
 }

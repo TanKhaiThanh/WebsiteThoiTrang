@@ -67,10 +67,13 @@ class GatewayController extends Controller
             } elseif ($request->hasFile('file') || $request->hasFile('image') || $request->hasFile('images')) {
                 // Handle file uploads
                 $multipart = $http->asMultipart();
-                foreach ($request->allFiles() as $key => $files) {
-                    $files = is_array($files) ? $files : [$files];
+                foreach ($request->allFiles() as $key => $fileData) {
+                    $isArray = is_array($fileData);
+                    $files = $isArray ? $fileData : [$fileData];
+                    
                     foreach ($files as $file) {
-                        $multipart = $multipart->attach($key, file_get_contents($file->getRealPath()), $file->getClientOriginalName());
+                        $attachKey = $isArray ? $key . '[]' : $key;
+                        $multipart = $multipart->attach($attachKey, file_get_contents($file->getRealPath()), $file->getClientOriginalName());
                     }
                 }
                 foreach ($request->except(array_keys($request->allFiles())) as $key => $value) {

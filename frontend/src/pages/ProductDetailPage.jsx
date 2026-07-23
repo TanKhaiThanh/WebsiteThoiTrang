@@ -2,15 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 
 const ProductDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { addToCart } = useCart();
+    const { user } = useAuth();
 
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    const [reviews, setReviews] = useState([]);
+    const [newRating, setNewRating] = useState(5);
+    const [newComment, setNewComment] = useState('');
 
     // Selection state
     const [selectedColor, setSelectedColor] = useState('');
@@ -31,6 +37,9 @@ const ProductDetailPage = () => {
                     setSelectedColor(data.variants[0].color);
                     setSelectedSize(data.variants[0].size);
                 }
+                // Fetch Reviews
+                const rvRes = await api.get(`/reviews?product_id=${id}&is_approved=1`);
+                setReviews(rvRes.data.data || []);
             } catch (error) {
                 toast.error('Không thể tải thông tin sản phẩm');
             } finally {
@@ -71,6 +80,20 @@ const ProductDetailPage = () => {
     const handleBuyNow = async () => {
         await handleAddToCart();
         navigate('/cart');
+    };
+
+    const submitReview = async (e) => {
+        e.preventDefault();
+        if (!user) return toast.error('Vui lòng đăng nhập để đánh giá');
+        if (!newComment.trim()) return toast.error('Vui lòng nhập nội dung đánh giá');
+        try {
+            await api.post('/reviews', { product_id: product.id, rating: newRating, comment: newComment });
+            toast.success('Đã gửi đánh giá thành công! Quản trị viên sẽ phê duyệt trong chốc lát.');
+            setNewComment('');
+            setNewRating(5);
+        } catch (error) {
+            toast.error('Gặp lỗi khi gửi đánh giá');
+        }
     };
 
     return (
@@ -194,6 +217,80 @@ const ProductDetailPage = () => {
                     <div style={{ marginTop: '3rem', borderTop: '1px solid var(--color-border)', paddingTop: '2rem' }}>
                         <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>Thông tin sản phẩm</h3>
                         <p style={{ color: 'var(--color-text-muted)', lineHeight: 1.8 }}>{product.description}</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Reviews Section */}
+            <div style={{ marginTop: '5rem', borderTop: '1px solid var(--color-border)', paddingTop: '3rem' }}>
+                <h2 style={{ fontSize: '1.8rem', marginBottom: '2rem', fontFamily: 'var(--font-serif)', color: 'var(--color-primary)' }}>NỀN TẢNG ĐÁNH GIÁ TỪ KHÁCH HÀNG</h2>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem' }}>
+
+                    {/* List Reviews */}
+                    <div>
+                        {reviews.length === 0 ? (
+                            <p style={{ color: 'var(--color-text-muted)' }}>Chưa có đánh giá nào cho sản phẩm này.</p>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                                {reviews.map(rv => (
+                                    <div key={rv.id} style={{ paddingBottom: '1.5rem', borderBottom: '1px solid #eaeaea' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
+                                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                                                {/* Fallback avatar */} KH
+                                            </div>
+                                            <div>
+                                                <p style={{ fontWeight: 600, fontSize: '0.9rem', margin: 0 }}>Id Khách hàng #{rv.user_id}</p>
+                                                <div style={{ color: '#f59e0b', fontSize: '0.9rem' }}>
+                                                    {'★'.repeat(rv.rating)}{'☆'.repeat(5 - rv.rating)}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <p style={{ color: '#444', fontSize: '0.95rem', lineHeight: 1.6, margin: 0 }}>{rv.comment}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Add Review Form */}
+                    <div style={{ backgroundColor: '#fdfdfc', padding: '2rem', border: '1px solid #eaeaea', borderRadius: '4px' }}>
+                        <h3 style={{ fontSize: '1.2rem', marginBottom: '1.5rem', fontWeight: 600 }}>Viết đánh giá của bạn</h3>
+                        {!user ? (
+                            <div style={{ padding: '1rem', backgroundColor: '#fffbe1', border: '1px solid #fef08a', color: '#b45309', borderRadius: '4px' }}>
+                                Vui lòng <a href="/login" style={{ fontWeight: 'bold', textDecoration: 'underline' }}>đăng nhập</a> để tham gia đánh giá sản phẩm.
+                            </div>
+                        ) : (
+                            <form onSubmit={submitReview} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 500, marginBottom: '0.5rem' }}>Mức độ hài lòng (Sao)</label>
+                                    <select
+                                        value={newRating}
+                                        onChange={(e) => setNewRating(parseInt(e.target.value))}
+                                        style={{ width: '100%', padding: '0.75rem', border: '1px solid #ccc', borderRadius: '4px', outline: 'none' }}
+                                    >
+                                        <option value={5}>⭐⭐⭐⭐⭐ (5) Xuất sắc</option>
+                                        <option value={4}>⭐⭐⭐⭐ (4) Tốt</option>
+                                        <option value={3}>⭐⭐⭐ (3) Bình thường</option>
+                                        <option value={2}>⭐⭐ (2) Kém</option>
+                                        <option value={1}>⭐ (1) Rất tệ</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 500, marginBottom: '0.5rem' }}>Nội dung đánh giá</label>
+                                    <textarea
+                                        value={newComment}
+                                        onChange={(e) => setNewComment(e.target.value)}
+                                        rows={4}
+                                        placeholder="Khải Thịnh là hệ tư tưởng. Bạn thấy sản phẩm này thế nào..."
+                                        style={{ width: '100%', padding: '0.75rem', border: '1px solid #ccc', borderRadius: '4px', resize: 'vertical', outline: 'none' }}
+                                    ></textarea>
+                                </div>
+                                <button type="submit" style={{ backgroundColor: '#111', color: '#fff', border: 'none', padding: '1rem', fontWeight: 600, borderRadius: '4px', cursor: 'pointer', transition: 'background-color 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = '#333'} onMouseOut={e => e.currentTarget.style.backgroundColor = '#111'}>
+                                    Gửi Đánh Giá
+                                </button>
+                            </form>
+                        )}
                     </div>
                 </div>
             </div>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Inventory;
+use App\Models\InventoryTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -19,13 +20,57 @@ class InventoryController extends Controller
 
     public function update(Request $request, $variantId)
     {
-        $inventory = Inventory::where('variant_id', $variantId)->first();
-        if (!$inventory) {
-            return response()->json(['error' => 'Inventory not found'], 404);
-        }
+        $request->validate([
+            'type' => 'required|in:in,out',
+            'quantity' => 'required|integer|min:1',
+            'note' => 'nullable|string'
+        ]);
 
-        $inventory->update(['available_qty' => $request->available_qty]);
-        return response()->json(['message' => 'Stock updated', 'inventory' => $inventory]);
+        DB::beginTransaction();
+        try {
+            $inventory = Inventory::where('variant_id', $variantId)->lockForUpdate()->first();
+            if (!$inventory) {
+                return response()->json(['error' => 'Inventory not found'], 404);
+            }
+
+            $currentQty = $inventory->available_qty;
+            $qtyChanged = $request->quantity;
+            
+            if ($request->type === 'out') {
+                if ($currentQty < $qtyChanged) {
+                    DB::rollBack();
+                    return response()->json(['error' => 'Không đủ số lượng trong kho'], 400);
+                }
+                $newQty = $currentQty - $qtyChanged;
+            } else {
+                $newQty = $currentQty + $qtyChanged;
+            }
+
+            $inventory->update(['available_qty' => $newQty]);
+
+            InventoryTransaction::create([
+                'variant_id' => $variantId,
+                'type' => $request->type,
+                'quantity_changed' => $qtyChanged,
+                'balance_after' => $newQty,
+                'note' => $request->note,
+                'user_name' => 'Admin'
+            ]);
+
+            DB::commit();
+            return response()->json(['message' => 'Stock updated', 'inventory' => $inventory]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function transactions($variantId)
+    {
+        $transactions = InventoryTransaction::where('variant_id', $variantId)
+            ->orderBy('created_at', 'desc')
+            ->get();
+        return response()->json(['data' => $transactions]);
     }
 
     /**

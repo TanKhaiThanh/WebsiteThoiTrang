@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit, Trash2, Image as ImageIcon, CheckCircle, Tag, X, Upload } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Image as ImageIcon, CheckCircle, Tag, X, Upload, ChevronDown, ChevronRight } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'sonner';
 
 const formatCurrency = (amount) => {
     if (!amount) return '0 ₫';
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+};
+
+// Fix Docker Windows Symlink by converting old /storage routes to direct /api/media stream
+const getFinalImageUrl = (url) => {
+    if (!url) return '';
+    let parsedUrl = url.replace('/storage/uploads/products/', '/api/media/image/');
+    return parsedUrl.startsWith('http') ? parsedUrl : `http://localhost:8000${parsedUrl}`;
 };
 
 // ==============================================
@@ -64,13 +71,21 @@ const ProductFormModal = ({ onClose, onSuccess, initialData, categories }) => {
     // Auto generate variations from Colors and Sizes
     const generateVariants = () => {
         const newVariants = [];
-        const cleanColors = configColors.map(c => c.trim()).filter(Boolean);
-        const cleanSizes = configSizes.map(s => s.trim()).filter(Boolean);
 
-        if (!cleanColors.length || !cleanSizes.length) {
-            toast.error("Vui lòng điền ít nhất 1 màu và 1 kích cỡ");
+        const capitalizeTitle = (str) => {
+            return str.split(' ').map(word => word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : '').join(' ');
+        };
+
+        const cleanColors = [...new Set(configColors.map(c => capitalizeTitle(c.trim())).filter(Boolean))];
+        const cleanSizes = [...new Set(configSizes.map(s => s.trim().toUpperCase()).filter(Boolean))];
+
+        if (!cleanColors.length && !cleanSizes.length) {
+            toast.error("Vui lòng điền tối thiểu 1 màu sắc hoặc 1 kích cỡ");
             return;
         }
+
+        const colorsToUse = cleanColors.length > 0 ? cleanColors : [''];
+        const sizesToUse = cleanSizes.length > 0 ? cleanSizes : [''];
 
         // Auto sku base
         let categoryCode = categories.find(c => c.id.toString() === formData.category_id.toString())?.slug || 'CAT';
@@ -79,9 +94,12 @@ const ProductFormModal = ({ onClose, onSuccess, initialData, categories }) => {
         // Remove accents for product name code
         let productCode = formData.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '').substring(0, 5).toUpperCase() || 'PROD';
 
-        cleanColors.forEach(color => {
-            cleanSizes.forEach(size => {
-                const sku = `${categoryCode}-${productCode}-${size.toUpperCase()}-${color.toUpperCase().replace(/\s+/g, '')}`;
+        colorsToUse.forEach(color => {
+            sizesToUse.forEach(size => {
+                const parts = [categoryCode, productCode];
+                if (size) parts.push(size.toUpperCase());
+                if (color) parts.push(color.toUpperCase().replace(/\s+/g, ''));
+                const sku = parts.join('-');
 
                 // check if exists to preserve qty
                 const existing = formData.variants.find(v => v.color === color && v.size === size);
@@ -196,7 +214,18 @@ const ProductFormModal = ({ onClose, onSuccess, initialData, categories }) => {
                                     <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Danh Mục *</label>
                                     <select required name="category_id" value={formData.category_id} onChange={handleInputChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
                                         <option value="">Chọn danh mục</option>
-                                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        {(() => {
+                                            const renderOptions = (cats, prefix = '') => {
+                                                return cats.reduce((acc, c) => {
+                                                    acc.push(<option key={c.id} value={c.id}>{prefix + c.name}</option>);
+                                                    if (c.children?.length) {
+                                                        acc = acc.concat(renderOptions(c.children, prefix + '-- '));
+                                                    }
+                                                    return acc;
+                                                }, []);
+                                            };
+                                            return renderOptions(categories);
+                                        })()}
                                     </select>
                                 </div>
                                 <div>
@@ -273,7 +302,6 @@ const ProductFormModal = ({ onClose, onSuccess, initialData, categories }) => {
                                             <th style={{ padding: '0.75rem' }}>Màu sắc</th>
                                             <th style={{ padding: '0.75rem' }}>Kích cỡ</th>
                                             <th style={{ padding: '0.75rem' }}>Mã SKU</th>
-                                            {!initialData && <th style={{ padding: '0.75rem', width: '120px' }}>Tồn kho gốc</th>}
                                             <th style={{ padding: '0.75rem', textAlign: 'right' }}>Xóa</th>
                                         </tr>
                                     </thead>
@@ -285,11 +313,6 @@ const ProductFormModal = ({ onClose, onSuccess, initialData, categories }) => {
                                                 <td style={{ padding: '0.75rem' }}>
                                                     <input required type="text" value={variant.sku} onChange={(e) => handleVariantChange(index, 'sku', e.target.value)} style={{ width: '100%', padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px' }} />
                                                 </td>
-                                                {!initialData && (
-                                                    <td style={{ padding: '0.75rem' }}>
-                                                        <input type="number" min="0" value={variant.qty} onChange={(e) => handleVariantChange(index, 'qty', e.target.value)} style={{ width: '100%', padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px' }} />
-                                                    </td>
-                                                )}
                                                 <td style={{ padding: '0.75rem', textAlign: 'right' }}>
                                                     <button type="button" onClick={() => {
                                                         const newV = [...formData.variants]; newV.splice(index, 1); setFormData(prev => ({ ...prev, variants: newV }));
@@ -312,7 +335,7 @@ const ProductFormModal = ({ onClose, onSuccess, initialData, categories }) => {
                                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                                     {formData.images.filter(img => !img.color).map((img, idx) => (
                                         <div key={idx} style={{ position: 'relative', width: '100px', height: '100px', borderRadius: '8px', border: '1px solid #ccc', overflow: 'hidden' }}>
-                                            <img src={img.url} alt="product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            <img src={getFinalImageUrl(img.url)} alt="product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                             <button type="button" onClick={() => removeImage(formData.images.findIndex(i => i.url === img.url))} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(255,0,0,0.8)', color: 'white', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer' }}>&times;</button>
                                         </div>
                                     ))}
@@ -332,7 +355,7 @@ const ProductFormModal = ({ onClose, onSuccess, initialData, categories }) => {
                                     <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                                         {formData.images.filter(img => img.color === color).map((img, idx) => (
                                             <div key={idx} style={{ position: 'relative', width: '100px', height: '100px', borderRadius: '8px', border: '1px solid #ccc', overflow: 'hidden' }}>
-                                                <img src={img.url} alt="product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                <img src={getFinalImageUrl(img.url)} alt="product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                                 <button type="button" onClick={() => removeImage(formData.images.findIndex(i => i.url === img.url))} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(255,0,0,0.8)', color: 'white', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer' }}>&times;</button>
                                             </div>
                                         ))}
@@ -363,6 +386,91 @@ const ProductFormModal = ({ onClose, onSuccess, initialData, categories }) => {
 
 
 // ==============================================
+// 1.5. COMPONENT: CATEGORY FORM MODAL
+// ==============================================
+const CategoryFormModal = ({ onClose, onSuccess, categories, initialData }) => {
+    const [submitting, setSubmitting] = useState(false);
+    const [formData, setFormData] = useState({
+        name: '', description: '', parent_id: ''
+    });
+
+    useEffect(() => {
+        if (initialData) {
+            setFormData({
+                name: initialData.name || '',
+                description: initialData.description || '',
+                parent_id: initialData.parent_id || ''
+            });
+        }
+    }, [initialData]);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setSubmitting(true);
+        try {
+            if (initialData) {
+                await api.put(`/categories/${initialData.id}`, formData);
+                toast.success('Cập nhật danh mục thành công');
+            } else {
+                await api.post('/categories', formData);
+                toast.success('Thêm danh mục thành công');
+            }
+            onSuccess();
+        } catch (error) {
+            toast.error(error.response?.data?.error || 'Có lỗi xảy ra');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    // Flatten logic cho parent_id select
+    const flattenCategories = (cats, prefix = '') => {
+        let flat = [];
+        cats.forEach(c => {
+            flat.push({ id: c.id, label: prefix + c.name });
+            if (c.children?.length) {
+                flat = flat.concat(flattenCategories(c.children, prefix + '-- '));
+            }
+        });
+        return flat;
+    };
+    const parentOptions = flattenCategories(categories);
+
+    return (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
+            <div style={{ backgroundColor: 'var(--color-surface)', width: '100%', maxWidth: '500px', borderRadius: '12px', overflow: 'hidden' }}>
+                <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between' }}>
+                    <h2 style={{ margin: 0, fontSize: '1.25rem' }}>{initialData ? 'Chỉnh Sửa Danh Mục' : 'Tạo Danh Mục Mới'}</h2>
+                    <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={24} /></button>
+                </div>
+                <form onSubmit={handleSubmit} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Tên danh mục *</label>
+                        <input required type="text" value={formData.name} onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))} style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)' }} />
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Thuộc danh mục cha</label>
+                        <select value={formData.parent_id} onChange={e => setFormData(prev => ({ ...prev, parent_id: e.target.value }))} style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                            <option value="">-- [ Không có ] Danh sách gốc --</option>
+                            {parentOptions.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Mô tả ngắn gọn</label>
+                        <textarea rows="3" value={formData.description} onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))} style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                        <button type="button" onClick={onClose} style={{ padding: '0.75rem 1.5rem', borderRadius: '6px', border: '1px solid #ccc', cursor: 'pointer', background: 'transparent' }}>Hủy Bỏ</button>
+                        <button type="submit" disabled={submitting} style={{ padding: '0.75rem 1.5rem', borderRadius: '6px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', cursor: submitting ? 'wait' : 'pointer' }}>{submitting ? 'Đang xử lý...' : (initialData ? 'Lưu Thay Đổi' : 'Xác Nhận Tạo')}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+
+// ==============================================
 // 2. MAIN PAGE EXPORT
 // ==============================================
 const ProductManagePage = () => {
@@ -374,9 +482,17 @@ const ProductManagePage = () => {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
 
+    // Category Tree States
+    const [expandedCategories, setExpandedCategories] = useState({});
+    const toggleExpanded = (catId) => {
+        setExpandedCategories(prev => ({ ...prev, [catId]: !prev[catId] }));
+    };
+
     // Modal states
     const [showProductModal, setShowProductModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
+    const [showCategoryModal, setShowCategoryModal] = useState(false);
+    const [editingCategory, setEditingCategory] = useState(null);
 
     const fetchCategories = async () => {
         try {
@@ -390,7 +506,7 @@ const ProductManagePage = () => {
     const fetchProducts = async () => {
         setLoading(true);
         try {
-            const res = await api.get(`/products?page=${page}&per_page=12`);
+            const res = await api.get(`/products/manage/all?page=${page}&per_page=12`);
             setProducts(res.data.data || []);
             setTotalPages(res.data.last_page || 1);
         } catch (error) {
@@ -416,13 +532,20 @@ const ProductManagePage = () => {
             setEditingProduct(null);
             setShowProductModal(true);
         } else {
-            const catName = prompt("Nhập tên danh mục mới:");
-            if (catName) {
-                api.post('/categories', { name: catName, description: '' }).then(() => {
-                    toast.success("Tạo danh mục thành công");
-                    fetchCategories();
-                }).catch(e => toast.error("Lỗi tạo danh mục"));
-            }
+            setEditingCategory(null);
+            setShowCategoryModal(true);
+        }
+    };
+
+    const handleToggleActive = async (product) => {
+        try {
+            const newStatus = !product.is_active;
+            await api.put(`/products/${product.id}`, { is_active: newStatus });
+            toast.success(`Sản phẩm đã được ${newStatus ? 'Hiện' : 'Ẩn'}`);
+            fetchProducts();
+        } catch (error) {
+            console.error(error);
+            toast.error("Lỗi cập nhật trạng thái");
         }
     };
 
@@ -483,14 +606,15 @@ const ProductManagePage = () => {
                                 <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>Sản phẩm</th>
                                 <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>Kho / Biến thể</th>
                                 <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>Giá cơ bản</th>
+                                <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', textAlign: 'center' }}>Trạng thái</th>
                                 <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', textAlign: 'right' }}>Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center' }}>Đang tải...</td></tr>
+                                <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center' }}>Đang tải...</td></tr>
                             ) : products.length === 0 ? (
-                                <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center' }}>Chưa có sản phẩm nào.</td></tr>
+                                <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center' }}>Chưa có sản phẩm nào.</td></tr>
                             ) : (
                                 products.map(product => {
                                     const totalQty = product.variants?.reduce((sum, v) => sum + (v.inventory?.available_qty || 0), 0) || 0;
@@ -499,7 +623,7 @@ const ProductManagePage = () => {
                                             <td style={{ padding: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
                                                 <div style={{ width: 60, height: 60, borderRadius: '8px', backgroundColor: '#e5e7eb', overflow: 'hidden' }}>
                                                     {product.primary_image ? (
-                                                        <img src={product.primary_image.url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                        <img src={getFinalImageUrl(product.primary_image.url)} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                                     ) : <ImageIcon size={24} style={{ margin: '18px', color: '#9ca3af' }} />}
                                                 </div>
                                                 <div>
@@ -522,6 +646,26 @@ const ProductManagePage = () => {
                                                         {formatCurrency(product.price)}
                                                     </div>
                                                 )}
+                                            </td>
+                                            <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
+                                                    <button
+                                                        onClick={() => handleToggleActive(product)}
+                                                        style={{
+                                                            width: '44px', height: '24px', borderRadius: '12px', border: 'none', cursor: 'pointer',
+                                                            backgroundColor: product.is_active !== false ? '#10b981' : '#e5e7eb',
+                                                            position: 'relative', transition: 'background-color 0.2s', display: 'flex', alignItems: 'center'
+                                                        }}>
+                                                        <div style={{
+                                                            width: '18px', height: '18px', backgroundColor: 'white', borderRadius: '50%',
+                                                            position: 'absolute', left: product.is_active !== false ? '22px' : '4px', transition: 'left 0.2s',
+                                                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                                                        }}></div>
+                                                    </button>
+                                                    <span style={{ fontSize: '0.75rem', color: product.is_active !== false ? '#10b981' : '#9ca3af', fontWeight: 600 }}>
+                                                        {product.is_active !== false ? 'Đang Bán' : 'Đã Ẩn'}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td style={{ padding: '1rem', textAlign: 'right' }}>
                                                 <button onClick={() => { setEditingProduct(product); setShowProductModal(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', marginRight: '1rem' }}>
@@ -551,7 +695,7 @@ const ProductManagePage = () => {
 
             {/* TAB CONTENT: CATEGORIES */}
             {activeTab === 'categories' && (
-                <div style={{ backgroundColor: 'var(--color-surface)', borderRadius: '8px', border: '1px solid var(--color-border)', overflowX: 'auto', width: '100%', maxWidth: '800px' }}>
+                <div style={{ backgroundColor: 'var(--color-surface)', borderRadius: '8px', border: '1px solid var(--color-border)', overflowX: 'auto', width: '100%' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                         <thead style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid var(--color-border)' }}>
                             <tr>
@@ -561,22 +705,69 @@ const ProductManagePage = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {categories.map(cat => (
-                                <tr key={cat.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                    <td style={{ padding: '1rem', fontWeight: 500 }}>#{cat.id}</td>
-                                    <td style={{ padding: '1rem', fontWeight: 600 }}>{cat.name}</td>
-                                    <td style={{ padding: '1rem', textAlign: 'right' }}>
-                                        <button onClick={() => {
-                                            if (window.confirm("Xóa danh mục này?")) {
-                                                api.delete(`/categories/${cat.id}`).then(() => fetchCategories()).catch(() => toast.error("Lỗi"));
-                                            }
-                                        }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)' }}><Trash2 size={20} /></button>
-                                    </td>
-                                </tr>
-                            ))}
+                            {(() => {
+                                const renderRows = (cats, depth = 0) => {
+                                    return cats.map(cat => {
+                                        const hasChildren = cat.children && cat.children.length > 0;
+                                        const isExpanded = expandedCategories[cat.id];
+                                        return (
+                                            <React.Fragment key={cat.id}>
+                                                <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                                    <td style={{ padding: '1rem', fontWeight: 500 }}>#{cat.id}</td>
+                                                    <td style={{ padding: '1rem', fontWeight: 600, paddingLeft: `${1 + depth * 2}rem` }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                            {hasChildren ? (
+                                                                <button
+                                                                    onClick={() => toggleExpanded(cat.id)}
+                                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: 'var(--color-primary)' }}
+                                                                >
+                                                                    {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                                                </button>
+                                                            ) : (
+                                                                <div style={{ width: '18px' }}></div>
+                                                            )}
+                                                            {depth > 0 && <span style={{ color: '#9ca3af', marginRight: '4px' }}>↳</span>}
+                                                            <span>{cat.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                                        <button onClick={() => {
+                                                            setEditingCategory(cat);
+                                                            setShowCategoryModal(true);
+                                                        }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', marginRight: '1rem' }}><Edit size={20} /></button>
+                                                        <button onClick={() => {
+                                                            if (window.confirm("Xóa danh mục này? Lưu ý: Nếu có danh mục con, chúng cũng có thể bị ảnh hưởng.")) {
+                                                                api.delete(`/categories/${cat.id}`).then(() => {
+                                                                    toast.success("Đã xóa danh mục");
+                                                                    fetchCategories();
+                                                                }).catch(() => toast.error("Lỗi xóa danh mục"));
+                                                            }
+                                                        }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)' }}><Trash2 size={20} /></button>
+                                                    </td>
+                                                </tr>
+                                                {isExpanded && hasChildren && renderRows(cat.children, depth + 1)}
+                                            </React.Fragment>
+                                        );
+                                    });
+                                };
+                                return renderRows(categories);
+                            })()}
                         </tbody>
                     </table>
                 </div>
+            )}
+
+            {/* Modal Category */}
+            {showCategoryModal && (
+                <CategoryFormModal
+                    categories={categories}
+                    initialData={editingCategory}
+                    onClose={() => setShowCategoryModal(false)}
+                    onSuccess={() => {
+                        setShowCategoryModal(false);
+                        fetchCategories();
+                    }}
+                />
             )}
 
             {/* Modal */}
