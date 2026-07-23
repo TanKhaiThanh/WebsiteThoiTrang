@@ -4,6 +4,9 @@ import api from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
+import { ShoppingBag, Loader2 } from 'lucide-react';
+
+const sizeOrderMap = { 'XS': 1, 'S': 2, 'M': 3, 'L': 4, 'XL': 5, 'XXL': 6, 'XXXL': 7, 'FREESIZE': 8 };
 
 const ProductDetailPage = () => {
     const { id } = useParams();
@@ -14,6 +17,12 @@ const ProductDetailPage = () => {
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const getFinalImageUrl = (url) => {
+        if (!url) return '';
+        let parsedUrl = url.replace('/storage/uploads/products/', '/api/media/image/');
+        return parsedUrl.startsWith('http') ? parsedUrl : `http://localhost:8000${parsedUrl}`;
+    };
+
     const [reviews, setReviews] = useState([]);
     const [newRating, setNewRating] = useState(5);
     const [newComment, setNewComment] = useState('');
@@ -23,6 +32,8 @@ const ProductDetailPage = () => {
     const [selectedSize, setSelectedSize] = useState('');
     const [quantity, setQuantity] = useState(1);
     const [mainImage, setMainImage] = useState('');
+    const [isAdding, setIsAdding] = useState(false);
+    const [isBuying, setIsBuying] = useState(false);
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -34,8 +45,19 @@ const ProductDetailPage = () => {
                 // Defaults
                 if (data.images?.length > 0) setMainImage(data.images[0].url);
                 if (data.variants?.length > 0) {
-                    setSelectedColor(data.variants[0].color);
-                    setSelectedSize(data.variants[0].size);
+                    const defaultColor = data.variants[0].color;
+                    setSelectedColor(defaultColor);
+
+                    const availableSizes = [...new Set(data.variants.filter(v => v.color === defaultColor).map(v => v.size))];
+                    const hasSizeS = availableSizes.find(s => s.toUpperCase() === 'S');
+                    if (hasSizeS) {
+                        setSelectedSize(hasSizeS);
+                    } else {
+                        const sortedNewSizes = availableSizes.sort((a, b) => {
+                            return (sizeOrderMap[a.toUpperCase()] || 99) - (sizeOrderMap[b.toUpperCase()] || 99);
+                        });
+                        setSelectedSize(sortedNewSizes[0]);
+                    }
                 }
                 // Fetch Reviews
                 const rvRes = await api.get(`/reviews?product_id=${id}&is_approved=1`);
@@ -54,7 +76,11 @@ const ProductDetailPage = () => {
 
     // Extract unique colors and sizes from variants
     const colors = [...new Set(product.variants?.map(v => v.color) || [])];
-    const sizes = [...new Set(product.variants?.filter(v => v.color === selectedColor).map(v => v.size) || [])];
+    const sizes = [...new Set(product.variants?.filter(v => v.color === selectedColor).map(v => v.size) || [])].sort((a, b) => {
+        const orderA = sizeOrderMap[a.toUpperCase()] || 99;
+        const orderB = sizeOrderMap[b.toUpperCase()] || 99;
+        return orderA - orderB;
+    });
 
     // Find selected variant
     const selectedVariant = product.variants?.find(v => v.color === selectedColor && v.size === selectedSize);
@@ -71,15 +97,26 @@ const ProductDetailPage = () => {
             return;
         }
 
+        setIsAdding(true);
         const { success } = await addToCart(product.id, selectedVariant.id, quantity, currentPrice);
+        setIsAdding(false);
+
         if (success) {
             toast.success('Đã thêm vào giỏ hàng');
         }
     };
 
     const handleBuyNow = async () => {
-        await handleAddToCart();
-        navigate('/cart');
+        setIsBuying(true);
+        const oldAdding = isAdding; // prevent both loading
+
+        if (!selectedVariant) { setIsBuying(false); toast.error('Vui lòng chọn màu sắc và kích cỡ'); return; }
+        if (quantity > stock) { setIsBuying(false); toast.error('Số lượng vượt quá tồn kho hiện tại'); return; }
+
+        const { success } = await addToCart(product.id, selectedVariant.id, quantity, currentPrice);
+        setIsBuying(false);
+
+        if (success) navigate('/cart');
     };
 
     const submitReview = async (e) => {
@@ -102,25 +139,28 @@ const ProductDetailPage = () => {
 
                 {/* Images Gallery */}
                 <div style={{ display: 'flex', gap: '1rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '80px' }}>
-                        {product.images?.map((img, idx) => (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '90px', maxHeight: '420px', overflowY: 'auto', paddingRight: '5px' }}>
+                        {product.images?.filter((img, _, allImgs) => {
+                            const hasSpecificColorImages = allImgs.some(i => i.color === selectedColor);
+                            return hasSpecificColorImages ? (img.color === selectedColor) : !img.color;
+                        }).map((img, idx) => (
                             <img
                                 key={idx}
-                                src={img.url}
+                                src={getFinalImageUrl(img.url)}
                                 alt="thumb"
                                 onClick={() => setMainImage(img.url)}
                                 style={{
-                                    width: '100%', aspectRatio: '3/4', objectFit: 'cover', cursor: 'pointer',
+                                    width: '100%', aspectRatio: '3/4', objectFit: 'cover', cursor: 'pointer', flexShrink: 0,
                                     border: mainImage === img.url ? '2px solid var(--color-primary)' : '1px solid transparent'
                                 }}
                             />
                         ))}
                     </div>
-                    <div style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+                    <div style={{ flex: 1, backgroundColor: '#f5f5f5', display: 'flex', justifyContent: 'center' }}>
                         <img
-                            src={mainImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name)}&background=random`}
+                            src={mainImage ? getFinalImageUrl(mainImage) : `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name)}&background=random`}
                             alt={product.name}
-                            style={{ width: '100%', height: 'auto', objectFit: 'cover' }}
+                            style={{ width: '100%', height: 'auto', objectFit: 'cover', maxHeight: '600px' }}
                         />
                     </div>
                 </div>
@@ -147,23 +187,45 @@ const ProductDetailPage = () => {
                     <div style={{ marginBottom: '2rem' }}>
                         <h4 style={{ fontSize: '0.9rem', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Màu sắc</h4>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            {colors.map(color => (
-                                <button
-                                    key={color}
-                                    onClick={() => {
-                                        setSelectedColor(color);
-                                        // Reset size when color changes
-                                        const newSizes = [...new Set(product.variants?.filter(v => v.color === color).map(v => v.size) || [])];
-                                        if (newSizes.length > 0) setSelectedSize(newSizes[0]);
-                                    }}
-                                    style={{
-                                        padding: '0.5rem 1rem', border: selectedColor === color ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
-                                        backgroundColor: selectedColor === color ? '#f5f5f5' : 'transparent', color: 'var(--color-primary)'
-                                    }}
-                                >
-                                    {color}
-                                </button>
-                            ))}
+                            {colors.map(color => {
+                                const colorMap = { 'Trắng': '#ffffff', 'Đen': '#000000', 'Đỏ': '#ef4444', 'Xanh': '#3b82f6', 'Vàng': '#eab308', 'Be': '#f4ebd8', 'Tím Than': '#1f2937' };
+                                const displayColor = color.startsWith('#') ? color : (colorMap[color] || '#a1a1aa');
+
+                                return (
+                                    <button
+                                        key={color}
+                                        title={color}
+                                        onClick={() => {
+                                            setSelectedColor(color);
+                                            const colorImage = product.images?.find(img => img.color === color);
+                                            if (colorImage) setMainImage(colorImage.url);
+                                            const newSizes = [...new Set(product.variants?.filter(v => v.color === color).map(v => v.size) || [])];
+                                            if (newSizes.length > 0) {
+                                                if (!newSizes.includes(selectedSize)) {
+                                                    const hasSizeS = newSizes.find(s => s.toUpperCase() === 'S');
+                                                    if (hasSizeS) {
+                                                        setSelectedSize(hasSizeS);
+                                                    } else {
+                                                        const sortedNewSizes = newSizes.sort((a, b) => {
+                                                            return (sizeOrderMap[a.toUpperCase()] || 99) - (sizeOrderMap[b.toUpperCase()] || 99);
+                                                        });
+                                                        setSelectedSize(sortedNewSizes[0]);
+                                                    }
+                                                }
+                                            }
+                                        }}
+                                        style={{
+                                            width: '32px', height: '32px', borderRadius: '50%',
+                                            border: selectedColor === color ? '2px solid #111' : '1px solid #e5e7eb',
+                                            backgroundColor: displayColor,
+                                            padding: 0,
+                                            cursor: 'pointer',
+                                            outlineOffset: '3px',
+                                            outline: selectedColor === color ? '1px solid #111' : 'none'
+                                        }}
+                                    />
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -199,17 +261,29 @@ const ProductDetailPage = () => {
                             />
                             <button onClick={() => setQuantity(quantity + 1)} style={{ padding: '0.5rem 1rem', fontSize: '1.2rem' }}>+</button>
                         </div>
-                        <span style={{ fontSize: '0.85rem', color: stock > 0 ? 'var(--color-success)' : 'var(--color-error)' }}>
-                            {stock > 0 ? `Còn ${stock} sản phẩm` : 'Hết hàng'}
+                        <span style={{ fontSize: '0.85rem', color: 'var(--color-error)' }}>
+                            {stock === 0 ? 'Hết hàng' : ''}
                         </span>
                     </div>
 
                     <div style={{ display: 'flex', gap: '1rem', marginTop: '3rem' }}>
-                        <button className="btn btn-outline" style={{ flex: 1 }} onClick={handleAddToCart} disabled={stock === 0}>
-                            Thêm Vào Giỏ Giá
+                        <button
+                            className="btn btn-outline"
+                            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', padding: '1rem', transition: 'all 0.3s ease', boxShadow: '0 4px 14px rgba(0,0,0,0.05)' }}
+                            onClick={handleAddToCart}
+                            disabled={stock === 0 || isAdding}
+                        >
+                            {isAdding ? <Loader2 size={18} className="animate-spin" /> : <ShoppingBag size={18} />}
+                            {isAdding ? 'Đang thêm...' : 'Thêm Vào Giỏ'}
                         </button>
-                        <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleBuyNow} disabled={stock === 0}>
-                            Mua Ngay
+                        <button
+                            className="btn btn-primary"
+                            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '1rem', transition: 'all 0.3s ease', boxShadow: '0 4px 14px rgba(0,0,0,0.1)' }}
+                            onClick={handleBuyNow}
+                            disabled={stock === 0 || isBuying}
+                        >
+                            {isBuying ? <Loader2 size={18} className="animate-spin" /> : null}
+                            {isBuying ? 'Đang tải...' : 'Mua Ngay'}
                         </button>
                     </div>
 

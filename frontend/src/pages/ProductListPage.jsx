@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { Heart } from 'lucide-react';
 import api from '../services/api';
+import CustomCheckbox from '../components/CustomCheckbox';
+import PriceRangeSlider from '../components/PriceRangeSlider';
+
+const sizeOrderMap = { 'XS': 1, 'S': 2, 'M': 3, 'L': 4, 'XL': 5, 'XXL': 6, 'XXXL': 7, 'FREESIZE': 8 };
 
 const ProductListPage = () => {
     const [products, setProducts] = useState([]);
@@ -21,7 +26,7 @@ const ProductListPage = () => {
     const initialSizes = searchParams.getAll('sizes');
     const initialColors = searchParams.getAll('colors');
     const initialMinPrice = searchParams.get('min_price') || 0;
-    const initialMaxPrice = searchParams.get('max_price') || 50000000;
+    const initialMaxPrice = searchParams.get('max_price') || 5000000;
     const initialSort = searchParams.get('sort') || 'created_at';
     const initialOrder = searchParams.get('order') || 'desc';
 
@@ -35,12 +40,17 @@ const ProductListPage = () => {
     useEffect(() => {
         const fetchFilters = async () => {
             try {
-                const [catRes, filRes] = await Promise.all([
-                    api.get('/categories'),
-                    api.get('/products/filters')
-                ]);
+                const catRes = await api.get('/categories');
+                const filRes = await api.get('/products/filters');
+
                 setCategories(catRes.data.categories || []);
-                setAvailableSizes(filRes.data.sizes || []);
+
+                const rawSizes = filRes.data.sizes || [];
+                const sortedSizes = rawSizes.sort((a, b) => {
+                    return (sizeOrderMap[a.toUpperCase()] || 99) - (sizeOrderMap[b.toUpperCase()] || 99);
+                });
+                setAvailableSizes(sortedSizes);
+
                 setAvailableColors(filRes.data.colors || []);
             } catch (error) {
                 console.error('Lỗi tải metadata filter', error);
@@ -76,10 +86,14 @@ const ProductListPage = () => {
         newColors.forEach(c => params.append('colors', c));
 
         if (newPrice[0] > 0) params.append('min_price', newPrice[0]);
-        if (newPrice[1] < 50000000) params.append('max_price', newPrice[1]);
+        if (newPrice[1] < 5000000) params.append('max_price', newPrice[1]);
 
         if (newSortStr) {
-            const [s, o] = newSortStr.split('_');
+            let s = 'created_at';
+            let o = 'desc';
+            if (newSortStr === 'price_asc') { s = 'price'; o = 'asc'; }
+            if (newSortStr === 'price_desc') { s = 'price'; o = 'desc'; }
+
             params.append('sort', s);
             params.append('order', o);
         }
@@ -158,14 +172,12 @@ const ProductListPage = () => {
                         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             {categories.map(cat => (
                                 <li key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <input
-                                        type="checkbox"
+                                    <CustomCheckbox
                                         id={`cat-${cat.id}`}
+                                        label={cat.name}
                                         checked={selectedCategories.includes(cat.id.toString())}
                                         onChange={() => toggleCategory(cat.id)}
-                                        style={{ width: '16px', height: '16px', accentColor: '#111', cursor: 'pointer' }}
                                     />
-                                    <label htmlFor={`cat-${cat.id}`} style={{ fontSize: '0.9rem', color: '#374151', cursor: 'pointer' }}>{cat.name}</label>
                                 </li>
                             ))}
                         </ul>
@@ -213,7 +225,7 @@ const ProductListPage = () => {
                                 const isActive = selectedColors.includes(color);
                                 // A smart way to parse simple colors vs Hex. We render a circle.
                                 // If color name is 'Trắng', we map it to '#fff'. (Basic mapping fallback)
-                                const colorMap = { 'Trắng': '#ffffff', 'Đen': '#000000', 'Đỏ': '#ef4444', 'Xanh': '#3b82f6', 'Vàng': '#eab308' };
+                                const colorMap = { 'Trắng': '#ffffff', 'Đen': '#000000', 'Đỏ': '#ef4444', 'Xanh': '#3b82f6', 'Xanh lá': '#166534', 'Vàng': '#eab308', 'Be': '#f4ebd8', 'Tím Than': '#1f2937' };
                                 const displayColor = color.startsWith('#') ? color : (colorMap[color] || '#a1a1aa');
 
                                 return (
@@ -242,21 +254,15 @@ const ProductListPage = () => {
                     <div>
                         <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600, borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>Giá (VNĐ)</h3>
                         <div style={{ padding: '0 0.5rem' }}>
-                            <input
-                                type="range"
-                                min="0"
-                                max="50000000"
-                                step="500000"
-                                value={priceRange[1]}
-                                onChange={(e) => setPriceRange([0, parseInt(e.target.value)])}
-                                onMouseUp={() => applyFilters(selectedCategories, selectedSizes, selectedColors, priceRange, sortBy)}
-                                onTouchEnd={() => applyFilters(selectedCategories, selectedSizes, selectedColors, priceRange, sortBy)}
-                                style={{ width: '100%', accentColor: '#111' }}
+                            <PriceRangeSlider
+                                min={0}
+                                max={5000000}
+                                value={priceRange}
+                                onChange={(value) => setPriceRange(value)}
+                                onChangeComplete={(value) => {
+                                    applyFilters(selectedCategories, selectedSizes, selectedColors, value, sortBy);
+                                }}
                             />
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginTop: '0.5rem', color: '#6b7280', fontWeight: 600 }}>
-                                <span>{formatPrice(0)}</span>
-                                <span style={{ color: '#111' }}>{formatPrice(priceRange[1])}+</span>
-                            </div>
                         </div>
                     </div>
                 </aside>
@@ -318,7 +324,7 @@ const ProductListPage = () => {
                                                 onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
                                                 onClick={(e) => { e.preventDefault(); /* TODO: Add to wishlist logic */ }}
                                             >
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                                                <Heart size={16} strokeWidth={2} color="#111" />
                                             </button>
                                         </div>
 

@@ -8,11 +8,13 @@
   --color-surface: #ffffff;
   --color-dark: #121212;
   --color-dark-surface: #1e1e1e;
-  
-  --color-primary: #121212; /* Đen tuyền sang trọng */
+
+  --color-primary: #121212;
+  /* Đen tuyền sang trọng */
   --color-primary-light: #2c2c2c;
-  
-  --color-accent: #cfae70; /* Vàng Gold cao cấp */
+
+  --color-accent: #cfae70;
+  /* Vàng Gold cao cấp */
   --color-accent-hover: #b8985c;
   --color-accent-light: #f6efe1;
 
@@ -23,15 +25,15 @@
   --color-error: #d73a49;
   --color-success: #28a745;
   --color-border: #e6e6e6;
-  
+
   /* Typography */
   --font-sans: 'Outfit', sans-serif;
   --font-serif: 'Playfair Display', serif;
-  
+
   /* Layout & Spacing */
   --max-width: 1280px;
   --header-height: 80px;
-  
+
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 1rem;
@@ -45,11 +47,11 @@
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-full: 9999px;
-  
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
-  
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
   /* Transitions */
   --trans-fast: 0.15s ease;
   --trans-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -59,7 +61,9 @@
 /* ==========================================================================
    RESET & BASE
    ========================================================================== */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -74,7 +78,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-serif);
   font-weight: 600;
   line-height: 1.2;
@@ -115,17 +124,46 @@ img {
   padding: 0 var(--space-4);
 }
 
-.flex { display: flex; }
-.flex-col { display: flex; flex-direction: column; }
-.items-center { align-items: center; }
-.justify-between { justify-content: space-between; }
-.justify-center { justify-content: center; }
-.gap-2 { gap: var(--space-2); }
-.gap-4 { gap: var(--space-4); }
+.flex {
+  display: flex;
+}
 
-.grid { display: grid; }
-.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
-.grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.gap-2 {
+  gap: var(--space-2);
+}
+
+.gap-4 {
+  gap: var(--space-4);
+}
+
+.grid {
+  display: grid;
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.grid-cols-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
 
 /* ==========================================================================
    UI COMPONENTS
@@ -152,6 +190,7 @@ img {
   color: var(--color-text-light);
   border: 1px solid var(--color-primary);
 }
+
 .btn-primary:hover {
   background-color: var(--color-accent);
   border-color: var(--color-accent);
@@ -163,6 +202,7 @@ img {
   color: var(--color-primary);
   border: 1px solid var(--color-border);
 }
+
 .btn-outline:hover {
   border-color: var(--color-primary);
 }
@@ -171,6 +211,7 @@ img {
   background-color: var(--color-accent);
   color: var(--color-surface);
 }
+
 .btn-gold:hover {
   background-color: var(--color-accent-hover);
 }
@@ -179,6 +220,7 @@ img {
 .form-group {
   margin-bottom: var(--space-4);
 }
+
 .form-label {
   display: block;
   font-size: 0.85rem;
@@ -186,6 +228,7 @@ img {
   margin-bottom: var(--space-2);
   color: var(--color-text-muted);
 }
+
 .form-input {
   width: 100%;
   padding: 0.8rem 1rem;
@@ -196,6 +239,7 @@ img {
   transition: border-color var(--trans-fast);
   outline: none;
 }
+
 .form-input:focus {
   border-color: var(--color-accent);
 }
@@ -211,37 +255,41 @@ img {
   padding: var(--space-5);
 }
 
-/* Product Card */
 .product-card {
-  group: product;
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
   transition: transform var(--trans-normal), box-shadow var(--trans-normal);
 }
+
 .product-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
 }
+
 .product-image-wrap {
   position: relative;
   overflow: hidden;
   aspect-ratio: 3/4;
   background-color: #f5f5f5;
 }
+
 .product-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   transition: transform var(--trans-slow);
 }
+
 .product-card:hover .product-image {
   transform: scale(1.05);
 }
+
 .product-info {
   padding: var(--space-3);
   text-align: center;
 }
+
 .product-brand {
   font-size: 0.75rem;
   color: var(--color-text-muted);
@@ -249,20 +297,37 @@ img {
   letter-spacing: 1px;
   margin-bottom: 0.25rem;
 }
+
 .product-name {
   font-family: var(--font-serif);
   font-size: 1.1rem;
   margin-bottom: 0.5rem;
   color: var(--color-primary);
 }
+
 .product-price {
   font-weight: 500;
   color: var(--color-accent);
 }
+
 .product-price-old {
   text-decoration: line-through;
   color: var(--color-text-muted);
   font-size: 0.9rem;
   margin-left: 0.5rem;
   font-weight: 400;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
