@@ -44,6 +44,71 @@ class AuthController extends Controller
     }
 
     /**
+     * Forgot Password
+     */
+    public function forgotPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $user = User::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json(['error' => 'Không tìm thấy tài khoản với email này.'], 404);
+        }
+
+        // Tạo mã ngẫu nhiên 6 chữ số
+        $token = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+        
+        // Lưu tạm vào Cache 15 phút
+        \Illuminate\Support\Facades\Cache::put('reset_token_' . $request->email, $token, now()->addMinutes(15));
+
+        return response()->json([
+            'message' => 'Request successful',
+            'reset_token' => $token
+        ], 200);
+    }
+
+    /**
+     * Reset Password
+     */
+    public function resetPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'token' => 'required|string',
+            'new_password' => 'required|string|min:6'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $cachedToken = \Illuminate\Support\Facades\Cache::get('reset_token_' . $request->email);
+
+        if (!$cachedToken || $cachedToken !== $request->token) {
+            return response()->json(['error' => 'Mã khôi phục không hợp lệ hoặc đã hết hạn.'], 400);
+        }
+
+        $user = User::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json(['error' => 'Không tìm thấy tài khoản.'], 404);
+        }
+
+        $user->password = $request->new_password; // Model User đã tự động Hash mật khẩu thông qua Casts
+        $user->save();
+
+        // Xóa token đi
+        \Illuminate\Support\Facades\Cache::forget('reset_token_' . $request->email);
+
+        return response()->json(['message' => 'Đặt lại mật khẩu thành công.'], 200);
+    }
+
+    /**
      * Login user
      */
     public function login(Request $request)
@@ -111,9 +176,9 @@ class AuthController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
-            'phone' => 'sometimes|string|max:20',
-            'address' => 'sometimes|string|max:500',
-            'avatar' => 'sometimes|string|max:500',
+            'phone' => 'sometimes|nullable|string|max:20',
+            'address' => 'sometimes|nullable|string|max:500',
+            'avatar' => 'sometimes|nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {

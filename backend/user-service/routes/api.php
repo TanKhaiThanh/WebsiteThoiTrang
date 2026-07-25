@@ -8,6 +8,8 @@ Route::get('/health', fn() => response()->json(['status' => 'ok', 'service' => '
 // Auth (Public)
 Route::post('/auth/register', [\App\Http\Controllers\AuthController::class, 'register']);
 Route::post('/auth/login', [\App\Http\Controllers\AuthController::class, 'login']);
+Route::post('/auth/forgot-password', [\App\Http\Controllers\AuthController::class, 'forgotPassword']);
+Route::post('/auth/reset-password', [\App\Http\Controllers\AuthController::class, 'resetPassword']);
 
 // Protected routes
 Route::middleware(\App\Http\Middleware\JwtMiddleware::class)->group(function () {

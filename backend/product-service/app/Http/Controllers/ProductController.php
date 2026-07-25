@@ -16,10 +16,26 @@ class ProductController extends Controller
     {
         $query = Product::with(['category', 'primaryImage', 'variants.inventory'])
             ->where('is_active', true);
+        // Filter by specific IDs
+        if ($request->has('ids')) {
+            $ids = is_array($request->ids) ? $request->ids : explode(',', $request->ids);
+            $query->whereIn('id', $ids);
+        }
 
-        // Filter by category
-        if ($request->has('category_id')) {
-            $query->where('category_id', $request->category_id);
+        // Filter by category (Recursive support for subclasses)
+        if ($request->has('category_id') && !empty($request->category_id)) {
+            $catIds = is_array($request->category_id) ? $request->category_id : explode(',', $request->category_id);
+            
+            $allCatIds = $catIds;
+            $currentLayer = $catIds;
+            for ($i = 0; $i < 3; $i++) {
+                $children = \App\Models\Category::whereIn('parent_id', $currentLayer)->pluck('id')->toArray();
+                if (empty($children)) break;
+                $allCatIds = array_merge($allCatIds, $children);
+                $currentLayer = $children;
+            }
+
+            $query->whereIn('category_id', array_unique($allCatIds));
         }
 
         // Search
@@ -59,6 +75,11 @@ class ProductController extends Controller
             $query->where('is_featured', true);
         }
 
+        // Sale
+        if ($request->boolean('has_sale')) {
+            $query->whereNotNull('sale_price')->where('sale_price', '>', 0);
+        }
+
         // Sort
         $sortBy = $request->get('sort', 'created_at');
         $sortDir = $request->get('order', 'desc');
@@ -71,9 +92,20 @@ class ProductController extends Controller
     {
         $query = Product::with(['category', 'primaryImage', 'variants.inventory']);
 
-        // Filter by category
-        if ($request->has('category_id')) {
-            $query->where('category_id', $request->category_id);
+        // Filter by category (Recursive support for subclasses)
+        if ($request->has('category_id') && !empty($request->category_id)) {
+            $catIds = is_array($request->category_id) ? $request->category_id : explode(',', $request->category_id);
+            
+            $allCatIds = $catIds;
+            $currentLayer = $catIds;
+            for ($i = 0; $i < 3; $i++) {
+                $children = \App\Models\Category::whereIn('parent_id', $currentLayer)->pluck('id')->toArray();
+                if (empty($children)) break;
+                $allCatIds = array_merge($allCatIds, $children);
+                $currentLayer = $children;
+            }
+
+            $query->whereIn('category_id', array_unique($allCatIds));
         }
 
         // Search

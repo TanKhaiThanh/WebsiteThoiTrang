@@ -113,6 +113,10 @@ class GatewayController extends Controller
             $headers['X-Requested-With'] = $request->header('X-Requested-With');
         }
 
+        if ($request->hasHeader('X-Session-ID')) {
+            $headers['X-Session-ID'] = $request->header('X-Session-ID');
+        }
+
         return $headers;
     }
 }

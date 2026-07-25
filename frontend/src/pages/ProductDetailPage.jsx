@@ -103,6 +103,8 @@ const ProductDetailPage = () => {
 
         if (success) {
             toast.success('Đã thêm vào giỏ hàng');
+        } else {
+            toast.error('Thêm giỏ hàng thất bại, vui lòng tải lại trang!');
         }
     };
 
@@ -255,11 +257,29 @@ const ProductDetailPage = () => {
                             <button onClick={() => setQuantity(Math.max(1, quantity - 1))} style={{ padding: '0.5rem 1rem', fontSize: '1.2rem' }}>-</button>
                             <input
                                 type="number"
+                                min="1"
+                                max={stock}
                                 value={quantity}
-                                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                onChange={(e) => {
+                                    let val = parseInt(e.target.value);
+                                    if (isNaN(val)) return setQuantity('');
+                                    if (val > stock) { toast.error(`Kho chỉ còn ${stock} cái`); val = stock; }
+                                    setQuantity(val);
+                                }}
+                                onBlur={(e) => {
+                                    let val = parseInt(e.target.value);
+                                    if (isNaN(val) || val < 1) val = 1;
+                                    setQuantity(val);
+                                }}
                                 style={{ width: '50px', textAlign: 'center', border: 'none', borderLeft: '1px solid var(--color-border)', borderRight: '1px solid var(--color-border)' }}
                             />
-                            <button onClick={() => setQuantity(quantity + 1)} style={{ padding: '0.5rem 1rem', fontSize: '1.2rem' }}>+</button>
+                            <button onClick={() => {
+                                if (quantity >= stock) {
+                                    toast.error(`Kho chỉ còn ${stock} cái`);
+                                    return;
+                                }
+                                setQuantity(quantity + 1);
+                            }} style={{ padding: '0.5rem 1rem', fontSize: '1.2rem' }}>+</button>
                         </div>
                         <span style={{ fontSize: '0.85rem', color: 'var(--color-error)' }}>
                             {stock === 0 ? 'Hết hàng' : ''}
@@ -314,8 +334,13 @@ const ProductDetailPage = () => {
                                                 {/* Fallback avatar */} KH
                                             </div>
                                             <div>
-                                                <p style={{ fontWeight: 600, fontSize: '0.9rem', margin: 0 }}>Id Khách hàng #{rv.user_id}</p>
-                                                <div style={{ color: '#f59e0b', fontSize: '0.9rem' }}>
+                                                <p style={{ fontWeight: 600, fontSize: '0.9rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                    Thành viên Asmaw
+                                                    <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 'normal', backgroundColor: '#ecfdf5', padding: '2px 6px', borderRadius: '4px' }}>
+                                                        ✔ Đã mua hàng
+                                                    </span>
+                                                </p>
+                                                <div style={{ color: '#f59e0b', fontSize: '0.9rem', marginTop: '0.2rem' }}>
                                                     {'★'.repeat(rv.rating)}{'☆'.repeat(5 - rv.rating)}
                                                 </div>
                                             </div>
@@ -356,7 +381,7 @@ const ProductDetailPage = () => {
                                         value={newComment}
                                         onChange={(e) => setNewComment(e.target.value)}
                                         rows={4}
-                                        placeholder="Khải Thịnh là hệ tư tưởng. Bạn thấy sản phẩm này thế nào..."
+                                        placeholder="Bạn thấy sản phẩm này thế nào ..."
                                         style={{ width: '100%', padding: '0.75rem', border: '1px solid #ccc', borderRadius: '4px', resize: 'vertical', outline: 'none' }}
                                     ></textarea>
                                 </div>

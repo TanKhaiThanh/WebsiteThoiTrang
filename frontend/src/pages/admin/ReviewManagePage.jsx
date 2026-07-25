@@ -6,6 +6,7 @@ import { Trash2, CheckSquare } from 'lucide-react';
 const ReviewManagePage = () => {
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
     const fetchReviews = async () => {
         try {
@@ -33,14 +34,7 @@ const ReviewManagePage = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Chắc chắn xóa đánh giá này? Không thể khôi phục.')) return;
-        try {
-            await api.delete(`/reviews/${id}`);
-            toast.success('Xóa đánh giá thành công');
-            fetchReviews();
-        } catch (error) {
-            toast.error('Lỗi khi xóa đánh giá');
-        }
+        setConfirmDeleteId(id);
     };
 
     if (loading) return <div className="p-4">Đang tải...</div>;
@@ -101,6 +95,29 @@ const ReviewManagePage = () => {
                     </tbody>
                 </table>
             </div>
+
+            {confirmDeleteId && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                    <div style={{ backgroundColor: '#fff', padding: '2rem', borderRadius: '8px', width: '400px', maxWidth: '90%', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+                        <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem', color: 'var(--color-error)' }}>Xác nhận xóa</h3>
+                        <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem', lineHeight: 1.6 }}>Chắc chắn xóa đánh giá này? Hành động này không thể khôi phục.</p>
+                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                            <button onClick={() => setConfirmDeleteId(null)} className="btn btn-outline" style={{ flex: 1 }}>Hủy</button>
+                            <button onClick={async () => {
+                                try {
+                                    await api.delete(`/reviews/${confirmDeleteId}`);
+                                    toast.success('Xóa đánh giá thành công');
+                                    fetchReviews();
+                                } catch (error) {
+                                    toast.error('Lỗi khi xóa đánh giá');
+                                } finally {
+                                    setConfirmDeleteId(null);
+                                }
+                            }} className="btn" style={{ flex: 1, backgroundColor: 'var(--color-error)', color: '#fff', border: 'none' }}>Xóa Tận Gốc</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -2,20 +2,29 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Heart } from 'lucide-react';
+import { useWishlist } from '../context/WishlistContext';
 import api from '../services/api';
 
+const getFinalImageUrl = (url) => {
+    if (!url) return '';
+    let parsedUrl = url;
+    if (url.includes('/storage/uploads/products/')) parsedUrl = url.replace('/storage/uploads/products/', '/api/media/image/');
+    if (url.includes('/storage/uploads/banners/')) parsedUrl = url.replace('/storage/uploads/banners/', '/api/media/image/');
+    return parsedUrl.startsWith('http') ? parsedUrl : `http://localhost:8000${parsedUrl}`;
+};
+
 const ProductCard = ({ product }) => {
+    const { toggleWishlist, isWishlisted } = useWishlist();
+
     return (
         <div style={{ padding: '0', position: 'relative' }}>
             <Link to={`/products/${product.id}`} style={{ display: 'block', position: 'relative', overflow: 'hidden', aspectRatio: '3/4', marginBottom: '1rem' }}>
                 <img
-                    src={product.primary_image?.url ? (product.primary_image.url.startsWith('http') ? product.primary_image.url : `http://127.0.0.1:8000${product.primary_image.url}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name)}&background=random`}
+                    src={product.primary_image?.url ? getFinalImageUrl(product.primary_image.url) : `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name)}&background=random`}
                     alt={product.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
-                <div style={{ position: 'absolute', top: 12, right: 12, color: 'white' }}>
-                    <Heart size={20} />
-                </div>
+
                 {product.sale_price && (
                     <div style={{
                         position: 'absolute', top: '12px', left: '12px',
@@ -26,6 +35,19 @@ const ProductCard = ({ product }) => {
                     </div>
                 )}
             </Link>
+
+            <button
+                onClick={(e) => { e.preventDefault(); toggleWishlist(product); }}
+                style={{
+                    position: 'absolute', top: '12px', right: '12px',
+                    background: 'none', border: 'none', cursor: 'pointer', zIndex: 10,
+                    color: isWishlisted(product.id) ? '#e63946' : 'white',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: 0
+                }}
+            >
+                <Heart size={20} fill={isWishlisted(product.id) ? '#e63946' : 'none'} color={isWishlisted(product.id) ? '#e63946' : 'white'} />
+            </button>
             <div style={{ textAlign: 'center' }}>
                 <Link to={`/products/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                     <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.4rem', fontWeight: 500, color: '#333' }}>{product.name}</h3>
@@ -47,11 +69,16 @@ const ProductCard = ({ product }) => {
 
 const HomePage = () => {
     const [saleProducts, setSaleProducts] = useState([]);
+    const [newProducts, setNewProducts] = useState([]);
     const [banners, setBanners] = useState([]);
 
     useEffect(() => {
-        api.get('/products?per_page=4')
+        api.get('/products?has_sale=1&per_page=4')
             .then(res => setSaleProducts(res.data.data))
+            .catch(err => console.error(err));
+
+        api.get('/products?sort=created_at&order=desc&per_page=4')
+            .then(res => setNewProducts(res.data.data))
             .catch(err => console.error(err));
 
         api.get('/banners?is_active=1')
@@ -69,7 +96,7 @@ const HomePage = () => {
                 position: 'relative',
                 height: '80vh',
                 backgroundColor: '#e6e4e1',
-                backgroundImage: heroBanner ? `url('${heroBanner.image_url.startsWith('http') ? heroBanner.image_url : "http://127.0.0.1:8000" + heroBanner.image_url}')` : 'none',
+                backgroundImage: heroBanner ? `url('${getFinalImageUrl(heroBanner.image_url)}')` : 'none',
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center'
@@ -92,40 +119,10 @@ const HomePage = () => {
                 <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '2.2rem', marginBottom: '1rem', fontWeight: 'normal', color: '#333', letterSpacing: '2px' }}>SẢN PHẨM MỚI</h2>
                 <div style={{ width: '40px', height: '1px', backgroundColor: '#8a6e3e', margin: '0 auto 4rem auto' }}></div>
 
-                <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center', maxWidth: '1200px', margin: '0 auto' }}>
-                    {/* Nam */}
-                    <div style={{ flex: 1, textAlign: 'center', position: 'relative' }}>
-                        <Link to="/products?category=nam" style={{ textDecoration: 'none', color: 'inherit' }}>
-                            <div style={{ overflow: 'hidden', marginBottom: '1.5rem', aspectRatio: '3/4', position: 'relative', backgroundColor: '#f0f0f0' }}>
-                                <img src="https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=1974&auto=format&fit=crop" alt="Nam" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                <Heart size={20} strokeWidth={1.5} style={{ position: 'absolute', top: 12, right: 12, color: 'white' }} />
-                            </div>
-                            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.8rem', fontStyle: 'italic', marginBottom: '0.5rem', color: '#8a6e3e', fontWeight: 'normal' }}>Nam</h3>
-                            <p style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', color: '#666' }}>The Modern Gentleman</p>
-                        </Link>
-                    </div>
-                    {/* Nữ */}
-                    <div style={{ flex: 1, textAlign: 'center', position: 'relative' }}>
-                        <Link to="/products?category=nu" style={{ textDecoration: 'none', color: 'inherit' }}>
-                            <div style={{ overflow: 'hidden', marginBottom: '1.5rem', aspectRatio: '3/4', position: 'relative', backgroundColor: '#f0f0f0' }}>
-                                <img src="https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=1983&auto=format&fit=crop" alt="Nữ" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                <Heart size={20} strokeWidth={1.5} style={{ position: 'absolute', top: 12, right: 12, color: 'white' }} />
-                            </div>
-                            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.8rem', fontStyle: 'italic', marginBottom: '0.5rem', color: '#8a6e3e', fontWeight: 'normal' }}>Nữ</h3>
-                            <p style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', color: '#666' }}>Elegance Redefined</p>
-                        </Link>
-                    </div>
-                    {/* Phụ kiện */}
-                    <div style={{ flex: 1, textAlign: 'center', position: 'relative' }}>
-                        <Link to="/products?category=phu-kien" style={{ textDecoration: 'none', color: 'inherit' }}>
-                            <div style={{ overflow: 'hidden', marginBottom: '1.5rem', aspectRatio: '3/4', position: 'relative', backgroundColor: '#f0f0f0' }}>
-                                <img src="https://img.freepik.com/free-photo/elegant-black-leather-handbag-marble-surface_53876-133501.jpg?w=1060&t=st=1708892239~exp=1708892839~hmac=a403d1544a49646b957697b0a720dc46d0a75f8f53a473b6fcb5b82fb99edbf9" alt="Phụ kiện" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                <Heart size={20} strokeWidth={1.5} style={{ position: 'absolute', top: 12, right: 12, color: 'white' }} />
-                            </div>
-                            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.8rem', fontStyle: 'italic', marginBottom: '0.5rem', color: '#8a6e3e', fontWeight: 'normal' }}>Phụ kiện</h3>
-                            <p style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', color: '#666' }}>The Essential Finish</p>
-                        </Link>
-                    </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
+                    {newProducts.map(product => (
+                        <ProductCard key={product.id} product={product} />
+                    ))}
                 </div>
             </section>
 
@@ -136,13 +133,13 @@ const HomePage = () => {
                 <div style={{ display: 'flex', alignItems: 'center', maxWidth: '1000px', margin: '0 auto', gap: '5rem' }}>
                     <div style={{ flex: 1 }}>
                         <p style={{ fontSize: '0.7rem', letterSpacing: '3px', textTransform: 'uppercase', color: '#8a6e3e', marginBottom: '1.5rem', fontWeight: 600 }}>Kỹ nghệ thủ công</p>
-                        <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '3.8rem', lineHeight: 1.1, marginBottom: '2rem', color: '#111', fontWeight: 'normal' }}>Vẻ Đẹp Đến Từ Sự<br />Tỉ Mỉ</h2>
+                        <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '3.8rem', lineHeight: 1.1, marginBottom: '2rem', color: '#111', fontWeight: 'normal' }}>Vẻ Đẹp Đến Từ<br />Sự Tỉ Mỉ</h2>
                         <p style={{ color: '#555', lineHeight: 1.8, marginBottom: '3rem', fontSize: '0.95rem' }}>Mỗi sản phẩm tại ASMAW không chỉ là trang phục, mà là một tác phẩm nghệ thuật được nhào nặn bởi đôi bàn tay khéo léo của các nghệ nhân. Chúng tôi tin rằng sự sang trọng thực sự nằm ở sự tối giản và chất lượng vượt thời gian.</p>
                         <Link to="/about" style={{ display: 'inline-block', borderBottom: '1px solid #111', color: '#111', fontSize: '0.75rem', letterSpacing: '2px', textTransform: 'uppercase', textDecoration: 'none', paddingBottom: '6px' }}>Tìm hiểu về chúng tôi</Link>
                     </div>
                     <div style={{ flex: 1 }}>
                         <div style={{ padding: '0.5rem', border: '1px solid #eaeaea', backgroundColor: '#fff' }}>
-                            <img src="https://images.unsplash.com/photo-1558024920-b41e1887dc32?q=80&w=1974&auto=format&fit=crop" alt="Thủ công" style={{ width: '100%', display: 'block' }} />
+                            <img src="/poster-hong.jpg" alt="Poster Thời Trang" style={{ width: '100%', display: 'block' }} />
                         </div>
                     </div>
                 </div>
@@ -172,7 +169,7 @@ const HomePage = () => {
                     maxWidth: '1200px',
                     margin: '0 auto',
                     height: '550px',
-                    backgroundImage: collectionBanner ? `url('${collectionBanner.image_url.startsWith('http') ? collectionBanner.image_url : "http://127.0.0.1:8000" + collectionBanner.image_url}')` : 'url("https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop")',
+                    backgroundImage: collectionBanner ? `url('${getFinalImageUrl(collectionBanner.image_url)}')` : 'url("https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop")',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     display: 'flex', alignItems: 'center', justifyContent: 'center'

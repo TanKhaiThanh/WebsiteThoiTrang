@@ -17,10 +17,12 @@ class PaymentController extends Controller
 
         $order = Order::find($request->order_id);
 
-        $vnp_TmnCode = env('VNPAY_TMN_CODE', 'DEMO1234');
-        $vnp_HashSecret = env('VNPAY_HASH_SECRET', 'DEMOSECRETKEY');
-        $vnp_Url = env('VNPAY_URL', 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html');
-        $vnp_ReturnUrl = env('VNPAY_RETURN_URL', 'http://localhost:3000/payment/callback');
+        $vnp_TmnCode = 'JNRTV9RY';
+        $vnp_HashSecret = 'EMKCOWQQYEGXMESTDPEWLTBFNLYIQBSQ';
+        $vnp_Url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+        $vnp_ReturnUrl = "http://localhost:3000/payment/callback";
+
+        date_default_timezone_set('Asia/Ho_Chi_Minh');
 
         $inputData = [
             'vnp_Version' => '2.1.0',
@@ -28,20 +30,35 @@ class PaymentController extends Controller
             'vnp_Amount' => $order->total * 100,
             'vnp_Command' => 'pay',
             'vnp_CreateDate' => date('YmdHis'),
+            'vnp_ExpireDate' => date('YmdHis', strtotime('+15 minutes')),
             'vnp_CurrCode' => 'VND',
             'vnp_IpAddr' => $request->ip(),
             'vnp_Locale' => 'vn',
-            'vnp_OrderInfo' => 'Thanh toan don hang ' . $order->order_number,
+            'vnp_OrderInfo' => 'Thanh_toan_don_hang_' . $order->order_number,
             'vnp_OrderType' => 'fashion',
             'vnp_ReturnUrl' => $vnp_ReturnUrl,
             'vnp_TxnRef' => $order->order_number . '_' . time(),
         ];
 
         ksort($inputData);
-        $query = http_build_query($inputData);
-        $hashdata = $query;
-        $vnpSecureHash = hash_hmac('sha512', $hashdata, $vnp_HashSecret);
-        $vnp_Url .= '?' . $query . '&vnp_SecureHash=' . $vnpSecureHash;
+        $query = "";
+        $i = 0;
+        $hashdata = "";
+        foreach ($inputData as $key => $value) {
+            if ($i == 1) {
+                $hashdata .= '&' . urlencode($key) . "=" . urlencode($value);
+            } else {
+                $hashdata .= urlencode($key) . "=" . urlencode($value);
+                $i = 1;
+            }
+            $query .= urlencode($key) . "=" . urlencode($value) . '&';
+        }
+
+        $vnp_Url = $vnp_Url . "?" . $query;
+        if (isset($vnp_HashSecret)) {
+            $vnpSecureHash =   hash_hmac('sha512', $hashdata, $vnp_HashSecret);
+            $vnp_Url .= 'vnp_SecureHash=' . $vnpSecureHash;
+        }
 
         // Record payment attempt
         Payment::create([
@@ -59,13 +76,22 @@ class PaymentController extends Controller
      */
     public function callback(Request $request)
     {
-        $vnp_HashSecret = env('VNPAY_HASH_SECRET', 'DEMOSECRETKEY');
+        $vnp_HashSecret = 'EMKCOWQQYEGXMESTDPEWLTBFNLYIQBSQ';
         $inputData = $request->all();
         $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
 
         unset($inputData['vnp_SecureHash'], $inputData['vnp_SecureHashType']);
         ksort($inputData);
-        $hashData = http_build_query($inputData);
+        $i = 0;
+        $hashData = "";
+        foreach ($inputData as $key => $value) {
+            if ($i == 1) {
+                $hashData = $hashData . '&' . urlencode($key) . "=" . urlencode($value);
+            } else {
+                $hashData = $hashData . urlencode($key) . "=" . urlencode($value);
+                $i = 1;
+            }
+        }
         $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
 
         if ($secureHash !== $vnp_SecureHash) {

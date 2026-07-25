@@ -46,6 +46,7 @@ Route::middleware(\App\Http\Middleware\JwtMiddleware::class)->group(function () 
     // Internal system routes (inventory reservation)
     Route::post('/inventory/reserve', [\App\Http\Controllers\InventoryController::class, 'reserve']);
     Route::post('/inventory/release', [\App\Http\Controllers\InventoryController::class, 'release']);
+    Route::post('/inventory/finalize', [\App\Http\Controllers\InventoryController::class, 'finalize']);
 });
 
 // Public routes

@@ -6,7 +6,7 @@ import api from '../services/api';
 import { toast } from 'sonner';
 
 const CheckoutPage = () => {
-    const { cart, cartTotal } = useCart();
+    const { cart, cartTotal, fetchCart } = useCart();
     const { user } = useAuth();
     const navigate = useNavigate();
 
@@ -20,10 +20,53 @@ const CheckoutPage = () => {
 
     const [loading, setLoading] = useState(false);
 
+    // Coupon states
+    const [couponCode, setCouponCode] = useState('');
+    const [discount, setDiscount] = useState(0);
+    const [applyingCoupon, setApplyingCoupon] = useState(false);
+
+    const [autoFill, setAutoFill] = useState(false);
+
     // Constants for demo
     const shippingFee = 30000;
+    const finalTotal = Math.max(0, cartTotal + shippingFee - discount);
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+    const handleAutoFill = async (e) => {
+        const checked = e.target.checked;
+        setAutoFill(checked);
+        if (checked && user) {
+            try {
+                const res = await api.get('/auth/me');
+                const profile = res.data.user || res.data;
+                setFormData(prev => ({
+                    ...prev,
+                    customer_name: profile.name || prev.customer_name,
+                    customer_phone: profile.phone || prev.customer_phone,
+                    shipping_address: profile.address || prev.shipping_address
+                }));
+                toast.success('Đã điền thông tin tự động');
+            } catch (error) {
+                toast.error('Không thể lấy thông tin. Vui lòng nhập thủ công.');
+            }
+        }
+    };
+
+    const handleApplyCoupon = async () => {
+        if (!couponCode) return;
+        setApplyingCoupon(true);
+        try {
+            const res = await api.post('/coupons/validate', { code: couponCode, order_total: cartTotal });
+            setDiscount(res.data.discount_amount || res.data.discount || 0);
+            toast.success('Áp dụng mã giảm giá thành công');
+        } catch (error) {
+            setDiscount(0);
+            toast.error(error.response?.data?.error || 'Mã giảm giá không hợp lệ hoặc đã hết hạn');
+        } finally {
+            setApplyingCoupon(false);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -34,14 +77,28 @@ const CheckoutPage = () => {
             // 1. Create order payload
             const orderData = {
                 ...formData,
-                items: cart.items.map(item => ({
-                    product_id: item.product_id,
-                    variant_id: item.variant_id,
-                    product_name: item.product_name || `Product #${item.product_id}`,
-                    quantity: item.quantity,
-                    price: item.price
-                })),
+                items: cart.items.map(item => {
+                    let variantInfoStr = 'Mặc định';
+                    if (item.product_details && item.variant_id) {
+                        const variant = item.product_details.variants?.find(v => v.id === item.variant_id);
+                        if (variant) {
+                            variantInfoStr = (variant.color || '') + (variant.size ? ` / ${variant.size}` : '');
+                        }
+                    }
+
+                    return {
+                        product_id: item.product_id,
+                        variant_id: item.variant_id,
+                        product_name: item.product_details?.name || item.product_name || `Product #${item.product_id}`,
+                        variant_info: variantInfoStr,
+                        quantity: item.quantity,
+                        price: item.price
+                    };
+                }),
                 shipping_fee: shippingFee,
+                voucher_discount: discount,
+                coupon_code: discount > 0 ? couponCode : null,
+                total_amount: finalTotal
             };
 
             // 2. Submit order
@@ -54,6 +111,7 @@ const CheckoutPage = () => {
                 window.location.href = payRes.data.payment_url;
             } else {
                 toast.success('Đặt hàng thành công!');
+                await fetchCart(); // Reset cart context because items are cleared in DB
                 navigate('/profile'); // or /orders/success
             }
 
@@ -77,6 +135,15 @@ const CheckoutPage = () => {
                 {/* User Info Form */}
                 <div>
                     <h3 style={{ fontSize: '1.2rem', marginBottom: '1.5rem', textTransform: 'uppercase' }}>Thông Tin Giao Hàng</h3>
+
+                    {user && (
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                <input type="checkbox" checked={autoFill} onChange={handleAutoFill} />
+                                <span style={{ fontSize: '0.9rem', color: 'var(--color-primary)' }}>Sử dụng địa chỉ mặc định trong tài khoản của tôi</span>
+                            </label>
+                        </div>
+                    )}
 
                     <div className="form-group">
                         <label className="form-label">Họ và tên</label>
@@ -121,7 +188,7 @@ const CheckoutPage = () => {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '1px solid var(--color-border)' }}>
                             {cart.items.map(item => (
                                 <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                                    <span>{item.quantity}x {item.product_name || `Product #${item.product_id}`}</span>
+                                    <span>{item.quantity}x {item.product_details?.name || item.product_name || `Product #${item.product_id}`}</span>
                                     <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.price * item.quantity)}</span>
                                 </div>
                             ))}
@@ -137,9 +204,27 @@ const CheckoutPage = () => {
                             <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(shippingFee)}</span>
                         </div>
 
+                        {/* Coupon Form */}
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', color: 'var(--color-text-muted)' }}>Mã giảm giá</label>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <input type="text" className="form-input" placeholder="Nhập mã..." value={couponCode} onChange={e => setCouponCode(e.target.value)} style={{ flex: 1, padding: '0.5rem 1rem' }} />
+                                <button type="button" className="btn btn-outline" onClick={handleApplyCoupon} disabled={applyingCoupon || !couponCode} style={{ padding: '0.5rem 1.5rem' }}>
+                                    {applyingCoupon ? 'Đang kiểm tra...' : 'Áp Dụng'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {discount > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', color: 'var(--color-success)', fontWeight: 500 }}>
+                                <span>Khuyến mãi (Coupon):</span>
+                                <span>-{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(discount)}</span>
+                            </div>
+                        )}
+
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem', fontSize: '1.2rem', fontWeight: 600 }}>
                             <span>Tổng cộng:</span>
-                            <span style={{ color: 'var(--color-accent)' }}>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(cartTotal + shippingFee)}</span>
+                            <span style={{ color: 'var(--color-accent)' }}>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(finalTotal)}</span>
                         </div>
 
                         <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>

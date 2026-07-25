@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { Heart } from 'lucide-react';
+import { Heart, ChevronDown, ChevronRight } from 'lucide-react';
 import api from '../services/api';
 import CustomCheckbox from '../components/CustomCheckbox';
 import PriceRangeSlider from '../components/PriceRangeSlider';
+import { useWishlist } from '../context/WishlistContext';
 
 const sizeOrderMap = { 'XS': 1, 'S': 2, 'M': 3, 'L': 4, 'XL': 5, 'XXL': 6, 'XXXL': 7, 'FREESIZE': 8 };
 
@@ -11,6 +12,8 @@ const ProductListPage = () => {
     const [products, setProducts] = useState([]);
     const [pagination, setPagination] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    const { toggleWishlist, isWishlisted } = useWishlist();
 
     // Dynamic Filter Data from Backend
     const [categories, setCategories] = useState([]);
@@ -22,9 +25,9 @@ const ProductListPage = () => {
 
     // Parse URL Params into State
     const searchParams = new URLSearchParams(location.search);
-    const initialCategories = searchParams.getAll('category_id');
-    const initialSizes = searchParams.getAll('sizes');
-    const initialColors = searchParams.getAll('colors');
+    const initialCategories = searchParams.get('category_id') ? searchParams.get('category_id').split(',') : [];
+    const initialSizes = searchParams.get('sizes') ? searchParams.get('sizes').split(',') : [];
+    const initialColors = searchParams.get('colors') ? searchParams.get('colors').split(',') : [];
     const initialMinPrice = searchParams.get('min_price') || 0;
     const initialMaxPrice = searchParams.get('max_price') || 5000000;
     const initialSort = searchParams.get('sort') || 'created_at';
@@ -35,6 +38,15 @@ const ProductListPage = () => {
     const [selectedColors, setSelectedColors] = useState(initialColors);
     const [priceRange, setPriceRange] = useState([initialMinPrice, initialMaxPrice]);
     const [sortBy, setSortBy] = useState(`${initialSort}_${initialOrder}`);
+
+    // Accordion State (Auto-expand if loaded from URL)
+    const [expandedCategories, setExpandedCategories] = useState(initialCategories.map(Number));
+
+    const toggleExpand = (id) => {
+        setExpandedCategories(prev =>
+            prev.includes(id) ? prev.filter(cId => cId !== id) : [...prev, id]
+        );
+    };
 
     // Fetch Base Options once
     useEffect(() => {
@@ -59,6 +71,27 @@ const ProductListPage = () => {
         fetchFilters();
     }, []);
 
+    // Sync State with URL (For Header links navigation)
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+
+        const newCats = params.get('category_id') ? params.get('category_id').split(',') : [];
+        setSelectedCategories(newCats);
+
+        // Cập nhật Expanded Categories dựa trên danh mục vừa được chọn từ Menu
+        if (newCats.length > 0) {
+            setExpandedCategories(prev => {
+                const numericCats = newCats.map(Number);
+                return [...new Set([...prev, ...numericCats])]; // Lọc trùng lặp
+            });
+        }
+
+        setSelectedSizes(params.get('sizes') ? params.get('sizes').split(',') : []);
+        setSelectedColors(params.get('colors') ? params.get('colors').split(',') : []);
+        setPriceRange([params.get('min_price') || 0, params.get('max_price') || 5000000]);
+        setSortBy(`${params.get('sort') || 'created_at'}_${params.get('order') || 'desc'}`);
+    }, [location.search]);
+
     // Perform Search when URL changes
     useEffect(() => {
         const fetchProducts = async () => {
@@ -81,9 +114,9 @@ const ProductListPage = () => {
     const applyFilters = (newCats, newSizes, newColors, newPrice, newSortStr) => {
         const params = new URLSearchParams();
 
-        newCats.forEach(id => params.append('category_id', id));
-        newSizes.forEach(s => params.append('sizes', s));
-        newColors.forEach(c => params.append('colors', c));
+        if (newCats.length > 0) params.append('category_id', newCats.join(','));
+        if (newSizes.length > 0) params.append('sizes', newSizes.join(','));
+        if (newColors.length > 0) params.append('colors', newColors.join(','));
 
         if (newPrice[0] > 0) params.append('min_price', newPrice[0]);
         if (newPrice[1] < 5000000) params.append('max_price', newPrice[1]);
@@ -170,16 +203,47 @@ const ProductListPage = () => {
                     <div>
                         <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600, borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>Phân loại</h3>
                         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {categories.map(cat => (
-                                <li key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <CustomCheckbox
-                                        id={`cat-${cat.id}`}
-                                        label={cat.name}
-                                        checked={selectedCategories.includes(cat.id.toString())}
-                                        onChange={() => toggleCategory(cat.id)}
-                                    />
-                                </li>
-                            ))}
+                            {categories.map(cat => {
+                                const isExpanded = expandedCategories.includes(cat.id);
+                                const hasChildren = cat.children && cat.children.length > 0;
+                                return (
+                                    <li key={cat.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                <CustomCheckbox
+                                                    id={`cat-${cat.id}`}
+                                                    label={<strong style={{ fontSize: '0.95rem' }}>{cat.name}</strong>}
+                                                    checked={selectedCategories.includes(cat.id.toString())}
+                                                    onChange={() => toggleCategory(cat.id.toString())}
+                                                />
+                                            </div>
+                                            {hasChildren && (
+                                                <button
+                                                    onClick={() => toggleExpand(cat.id)}
+                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '0.2rem', color: '#6b7280' }}
+                                                >
+                                                    {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {hasChildren && isExpanded && (
+                                            <ul style={{ listStyle: 'none', padding: '0 0 0 1.75rem', margin: 0, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                                                {cat.children.map(child => (
+                                                    <li key={child.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                        <CustomCheckbox
+                                                            id={`cat-${child.id}`}
+                                                            label={<span style={{ color: '#4b5563', fontSize: '0.9rem' }}>{child.name}</span>}
+                                                            checked={selectedCategories.includes(child.id.toString())}
+                                                            onChange={() => toggleCategory(child.id.toString())}
+                                                        />
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </li>
+                                )
+                            })}
                         </ul>
                     </div>
 
@@ -322,9 +386,9 @@ const ProductListPage = () => {
                                                 style={{ position: 'absolute', top: '10px', right: '10px', background: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', transition: 'transform 0.2s', zIndex: 10 }}
                                                 onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'}
                                                 onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
-                                                onClick={(e) => { e.preventDefault(); /* TODO: Add to wishlist logic */ }}
+                                                onClick={(e) => { e.preventDefault(); toggleWishlist(product); }}
                                             >
-                                                <Heart size={16} strokeWidth={2} color="#111" />
+                                                <Heart size={16} strokeWidth={2} color={isWishlisted(product.id) ? '#e63946' : '#111'} fill={isWishlisted(product.id) ? '#e63946' : 'none'} />
                                             </button>
                                         </div>
 

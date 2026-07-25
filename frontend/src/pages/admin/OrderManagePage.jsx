@@ -22,6 +22,25 @@ const STATUS_LABELS = {
     returned: 'Đổi/Trả'
 };
 
+const getAllowedStatuses = (role, currentStatus) => {
+    const all = Object.keys(STATUS_LABELS);
+    if (role === 'admin') return all;
+
+    if (role === 'staff') {
+        if (['delivered', 'cancelled', 'returned'].includes(currentStatus)) {
+            return [currentStatus]; // Đã chốt (hoặc chết) thì không cho Staff sửa
+        }
+        return all; // Đơn hàng còn sống thì cho Staff toàn quyền nhảy cóc
+    }
+
+    if (role === 'shipper') {
+        if (currentStatus === 'shipping') return ['shipping', 'delivered', 'returned', 'cancelled'];
+        return [currentStatus]; // Đã đóng thì Shipper cũng không cho sửa
+    }
+
+    return [currentStatus];
+};
+
 const formatCurrency = (amount) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 };
@@ -41,7 +60,7 @@ const OrderManagePage = () => {
     const fetchOrders = async () => {
         setLoading(true);
         try {
-            const params = { page, per_page: 15 };
+            const params = { page, per_page: 15, all_users: 1 };
             if (statusFilter) params.status = statusFilter;
 
             const response = await api.get('/orders', { params });
@@ -150,7 +169,7 @@ const OrderManagePage = () => {
                                         <select
                                             value={order.status}
                                             onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                                            disabled={isUpdating && selectedOrder?.id !== order.id}
+                                            disabled={(isUpdating && selectedOrder?.id !== order.id) || getAllowedStatuses(user?.role, order.status).length <= 1}
                                             style={{
                                                 padding: '0.35rem 0.6rem',
                                                 borderRadius: '99px',
@@ -159,12 +178,13 @@ const OrderManagePage = () => {
                                                 backgroundColor: STATUS_COLORS[order.status] + '11',
                                                 fontWeight: 600,
                                                 outline: 'none',
-                                                cursor: 'pointer',
-                                                fontSize: '0.85rem'
+                                                cursor: getAllowedStatuses(user?.role, order.status).length <= 1 ? 'not-allowed' : 'pointer',
+                                                fontSize: '0.85rem',
+                                                appearance: getAllowedStatuses(user?.role, order.status).length <= 1 ? 'none' : 'auto'
                                             }}
                                         >
-                                            {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                                                <option key={key} value={key}>{label}</option>
+                                            {getAllowedStatuses(user?.role, order.status).map(key => (
+                                                <option key={key} value={key}>{STATUS_LABELS[key]}</option>
                                             ))}
                                         </select>
                                     </td>

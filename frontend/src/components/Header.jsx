@@ -1,17 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
 import { ShoppingBag, User, Heart, Search, LogOut } from 'lucide-react';
 
 const Header = () => {
     const { user, logout } = useAuth();
     const { cartCount } = useCart();
+    const { wishlistCount } = useWishlist();
     const navigate = useNavigate();
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const handleLogout = () => {
         logout();
-        navigate('/');
     };
 
     return (
@@ -37,19 +40,44 @@ const Header = () => {
 
                 {/* Navigation */}
                 <nav style={{ display: 'flex', gap: '2.5rem', alignItems: 'center' }}>
-                    <Link to="/products?sale=1" style={{ fontSize: '0.85rem', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: '#111', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#8a6e3e'} onMouseOut={e => e.currentTarget.style.color = '#111'}>Sale</Link>
+                    <Link to="/products?has_sale=1" style={{ fontSize: '0.85rem', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: '#111', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#8a6e3e'} onMouseOut={e => e.currentTarget.style.color = '#111'}>Sale</Link>
                     <Link to="/products" style={{ fontSize: '0.85rem', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: '#111', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#8a6e3e'} onMouseOut={e => e.currentTarget.style.color = '#111'}>Bộ sưu tập</Link>
-                    <Link to="/products?category=nam" style={{ fontSize: '0.85rem', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: '#111', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#8a6e3e'} onMouseOut={e => e.currentTarget.style.color = '#111'}>Nam</Link>
-                    <Link to="/products?category=nu" style={{ fontSize: '0.85rem', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: '#111', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#8a6e3e'} onMouseOut={e => e.currentTarget.style.color = '#111'}>Nữ</Link>
-                    <Link to="/products?category=phu-kien" style={{ fontSize: '0.85rem', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: '#111', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#8a6e3e'} onMouseOut={e => e.currentTarget.style.color = '#111'}>Phụ kiện</Link>
+                    <Link to="/products?category_id=2" style={{ fontSize: '0.85rem', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: '#111', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#8a6e3e'} onMouseOut={e => e.currentTarget.style.color = '#111'}>Nam</Link>
+                    <Link to="/products?category_id=4" style={{ fontSize: '0.85rem', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: '#111', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#8a6e3e'} onMouseOut={e => e.currentTarget.style.color = '#111'}>Nữ</Link>
                     <Link to="/news" style={{ fontSize: '0.85rem', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: '#111', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#8a6e3e'} onMouseOut={e => e.currentTarget.style.color = '#111'}>Tin tức</Link>
                 </nav>
 
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-                    <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#111', padding: 0 }}>
-                        <Search size={20} strokeWidth={1.5} />
-                    </button>
+                    <form onSubmit={(e) => {
+                        e.preventDefault();
+                        if (searchQuery.trim()) {
+                            navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+                        }
+                    }} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #111', paddingBottom: '2px', marginRight: '0.5rem' }}>
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Tìm kiếm..."
+                            style={{
+                                width: '120px',
+                                border: 'none',
+                                outline: 'none',
+                                background: 'transparent',
+                                fontSize: '0.85rem',
+                                color: '#111',
+                                transition: 'width 0.3s ease'
+                            }}
+                            onFocus={(e) => e.target.style.width = '180px'}
+                            onBlur={(e) => {
+                                if (!searchQuery) e.target.style.width = '120px';
+                            }}
+                        />
+                        <button type="submit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#111', padding: 0, display: 'flex', alignItems: 'center' }}>
+                            <Search size={18} strokeWidth={1.5} />
+                        </button>
+                    </form>
 
                     <Link to="/cart" style={{ position: 'relative', color: '#111', display: 'flex', alignItems: 'center' }}>
                         <ShoppingBag size={20} strokeWidth={1.5} />
@@ -66,14 +94,27 @@ const Header = () => {
                         )}
                     </Link>
 
-                    <Link to="/wishlist" style={{ color: '#111', display: 'flex', alignItems: 'center' }}>
+                    <Link to="/wishlist" style={{ position: 'relative', color: '#111', display: 'flex', alignItems: 'center' }}>
                         <Heart size={20} strokeWidth={1.5} />
+                        {wishlistCount > 0 && (
+                            <span style={{
+                                position: 'absolute', top: '-4px', right: '-6px',
+                                background: '#ca8a04', color: '#fff',
+                                fontSize: '0.6rem', fontWeight: 'bold',
+                                width: '16px', height: '16px', borderRadius: '50%',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}>
+                                {wishlistCount}
+                            </span>
+                        )}
                     </Link>
 
                     {user ? (
                         <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
-                            <Link to="/profile" style={{ color: '#111', display: 'flex', alignItems: 'center' }}>
-                                <User size={20} strokeWidth={1.5} />
+                            <Link to="/profile" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }} title={user?.name}>
+                                <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#111', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 600 }}>
+                                    {user?.name?.charAt(0).toUpperCase() || <User size={16} />}
+                                </div>
                             </Link>
 
                             {['admin', 'staff', 'shipper'].includes(user.role) && (
@@ -96,6 +137,7 @@ const Header = () => {
                     )}
                 </div>
             </div>
+
         </header>
     );
 };

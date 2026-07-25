@@ -125,4 +125,21 @@ class InventoryController extends Controller
 
         return response()->json(['message' => 'Stock released']);
     }
+
+    /**
+     * Finalize reserved stock (order delivered)
+     */
+    public function finalize(Request $request)
+    {
+        $items = $request->input('items', []);
+
+        foreach ($items as $item) {
+            Inventory::where('variant_id', $item['variant_id'])
+                ->update([
+                    'reserved_qty' => DB::raw("GREATEST(reserved_qty - {$item['qty']}, 0)")
+                ]);
+        }
+
+        return response()->json(['message' => 'Stock finalized']);
+    }
 }

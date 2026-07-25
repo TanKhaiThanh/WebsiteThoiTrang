@@ -143,7 +143,8 @@ const InventoryManagePage = () => {
                             <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>Sản phẩm</th>
                             <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>Biến thể</th>
                             <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>Trạng thái</th>
-                            <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', textAlign: 'center' }}>Số lượng</th>
+                            <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', textAlign: 'center' }}>Tồn kho</th>
+                            <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', textAlign: 'center' }}>Đã đặt (Reserve)</th>
                             <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--color-text-muted)', textAlign: 'center' }}>Thao tác kho hàng</th>
                         </tr>
                     </thead>
@@ -180,7 +181,12 @@ const InventoryManagePage = () => {
                                             )}
                                         </td>
                                         <td style={{ padding: '1rem', textAlign: 'center', verticalAlign: 'middle' }}>
-                                            <span style={{ fontWeight: 700, fontSize: '1.25rem', display: 'inline-block', minWidth: '40px', padding: '0.2rem 0.5rem', backgroundColor: '#f1f5f9', borderRadius: '4px', verticalAlign: 'middle' }}>{qty}</span>
+                                            <span style={{ fontWeight: 700, fontSize: '1.25rem', display: 'inline-block', minWidth: '40px', padding: '0.2rem 0.5rem', backgroundColor: '#f1f5f9', color: '#334155', borderRadius: '4px', verticalAlign: 'middle' }}>{qty}</span>
+                                        </td>
+                                        <td style={{ padding: '1rem', textAlign: 'center', verticalAlign: 'middle' }}>
+                                            <span style={{ fontWeight: 700, fontSize: '1.1rem', display: 'inline-block', minWidth: '40px', padding: '0.2rem 0.5rem', backgroundColor: '#fff7ed', color: '#d97706', borderRadius: '4px', verticalAlign: 'middle' }}>
+                                                {variant.inventory?.reserved_qty || 0}
+                                            </span>
                                         </td>
                                         <td style={{ padding: '1rem', textAlign: 'center', verticalAlign: 'middle' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>

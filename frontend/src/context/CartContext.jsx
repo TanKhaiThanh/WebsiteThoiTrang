@@ -19,11 +19,27 @@ export const CartProvider = ({ children }) => {
         return sid;
     };
 
+    const rehydrateCart = async (rawCart) => {
+        if (!rawCart || !rawCart.items?.length) return rawCart;
+        const productIds = [...new Set(rawCart.items.map(i => i.product_id))].join(',');
+        try {
+            const prodRes = await api.get(`/products?ids=${productIds}`);
+            const productsDict = prodRes.data.data.reduce((acc, p) => { acc[p.id] = p; return acc; }, {});
+            rawCart.items = rawCart.items.map(item => ({
+                ...item,
+                product_details: productsDict[item.product_id] || null
+            }));
+        } catch (e) {
+            console.error('Failed to rehydrate cart items');
+        }
+        return rawCart;
+    };
+
     const fetchCart = async () => {
         try {
             const headers = !user ? { 'X-Session-ID': getSessionId() } : {};
             const res = await api.get('/cart', { headers });
-            setCart(res.data.cart);
+            setCart(await rehydrateCart(res.data.cart));
         } catch (error) {
             console.error('Error fetching cart:', error);
         } finally {
@@ -45,7 +61,7 @@ export const CartProvider = ({ children }) => {
                 quantity,
                 price
             }, { headers });
-            setCart(res.data.cart);
+            setCart(await rehydrateCart(res.data.cart));
             return { success: true };
         } catch (error) {
             return { success: false, error: 'Failed to add item' };
@@ -53,12 +69,24 @@ export const CartProvider = ({ children }) => {
     };
 
     const updateQuantity = async (itemId, quantity) => {
+        if (quantity < 1) return;
+        const originalCart = { ...cart, items: cart.items.map(i => ({ ...i })) };
+
         try {
+            setCart(prev => {
+                if (!prev || !prev.items) return prev;
+                return {
+                    ...prev,
+                    items: prev.items.map(item => item.id === itemId ? { ...item, quantity } : item)
+                };
+            });
+
             const headers = !user ? { 'X-Session-ID': getSessionId() } : {};
             const res = await api.put(`/cart/items/${itemId}`, { quantity }, { headers });
-            setCart(res.data.cart);
+            setCart(await rehydrateCart(res.data.cart));
         } catch (error) {
             console.error('Update quantity failed', error);
+            setCart(originalCart);
         }
     };
 
@@ -66,7 +94,7 @@ export const CartProvider = ({ children }) => {
         try {
             const headers = !user ? { 'X-Session-ID': getSessionId() } : {};
             const res = await api.delete(`/cart/items/${itemId}`, { headers });
-            setCart(res.data.cart);
+            setCart(await rehydrateCart(res.data.cart));
         } catch (error) {
             console.error('Remove item failed', error);
         }

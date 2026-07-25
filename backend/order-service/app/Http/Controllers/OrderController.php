@@ -17,8 +17,14 @@ class OrderController extends Controller
 
         $query = Order::with('items');
 
-        // Admin/Staff/Shipper see all, customer sees only own
-        if (!in_array($role, ['admin', 'staff', 'shipper'])) {
+        // Admin/Staff/Shipper can see all if ?all_users=1 is explicitly passed
+        if (in_array($role, ['admin', 'staff', 'shipper']) && $request->input('all_users') == '1') {
+            // Shipper chỉ được thấy những đơn đã qua khâu đóng gói
+            if ($role === 'shipper') {
+                $query->whereNotIn('status', ['pending', 'confirmed']);
+            }
+        } else {
+            // Customer or Admin looking at personal profile only sees own
             $query->where('user_id', $userId);
         }
 
@@ -67,6 +73,25 @@ class OrderController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        // Reserve stock via product-service
+        $reservePayload = [
+            'items' => collect($request->items)->map(function($i) {
+                return ['variant_id' => $i['variant_id'], 'qty' => $i['quantity']];
+            })->toArray()
+        ];
+        
+        $token = $request->bearerToken();
+        try {
+            $response = \Illuminate\Support\Facades\Http::withToken($token)
+                ->post('http://asmaw-product-service:8002/api/inventory/reserve', $reservePayload);
+                
+            if (!$response->successful()) {
+                return response()->json(['error' => 'Một hoặc nhiều sản phẩm đã hết hàng hoặc không đủ số lượng trong kho.'], 400); 
+            }
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Lỗi kết nối Kho xuất hàng: ' . $e->getMessage()], 500); 
+        }
+
         $subtotal = collect($request->items)->sum(fn($i) => $i['price'] * $i['quantity']);
         $voucherDiscount = $request->input('voucher_discount', 0);
         $shippingDiscount = $request->input('shipping_discount', 0);
@@ -95,6 +120,21 @@ class OrderController extends Controller
             $order->items()->create($item);
         }
 
+        // Auto-clear cart after successful order creation
+        $userId = $request->input('auth_user_id');
+        $sessionId = $request->header('X-Session-ID');
+        
+        $cartQuery = \App\Models\Cart::query();
+        if ($userId) {
+            $cartQuery->where('user_id', $userId);
+        } else if ($sessionId) {
+            $cartQuery->where('session_id', $sessionId);
+        }
+        $cart = $cartQuery->first();
+        if ($cart) {
+            $cart->items()->delete();
+        }
+
         return response()->json([
             'message' => 'Order created',
             'order' => $order->load('items'),
@@ -105,15 +145,96 @@ class OrderController extends Controller
     {
         $request->validate(['status' => 'required|in:pending,confirmed,shipping,delivered,cancelled,returned']);
 
-        $order = Order::find($id);
+        $role = $request->input('auth_user_role');
+        
+        // 1. Phân quyền: Khách hàng không được dùng API này (Phải dùng hàm cancel)
+        if ($role === 'user' || $role === 'customer' || empty($role)) {
+            return response()->json(['error' => 'Forbidden. Customers cannot update order status directly.'], 403);
+        }
+
+        $order = Order::with('items')->find($id);
         if (!$order) return response()->json(['error' => 'Order not found'], 404);
 
-        $order->update(['status' => $request->status]);
+        $oldStatus = $order->status;
+        $newStatus = $request->status;
 
-        if ($request->status === 'delivered') {
+        if ($oldStatus === $newStatus) {
+            return response()->json(['message' => 'Status unchanged', 'order' => $order]);
+        }
+
+        // 2. Logic RBAC State Machine
+        if ($role !== 'admin') {
+            // Cấm sửa đơn đã Đóng/Giao thành công
+            if (in_array($oldStatus, ['delivered', 'cancelled', 'returned'])) {
+                return response()->json(['error' => 'Forbidden. Order is finalized and cannot be modified except by Admin.'], 403);
+            }
+
+            if ($role === 'staff') {
+                // Đã chặn đơn chết ở if bên trên, do đó dưới này Staff được toàn quyền nhảy cóc
+                // Không cần mảng allowedStaff nữa.
+            } elseif ($role === 'shipper') {
+                $allowedShipper = [
+                    'shipping' => ['delivered', 'returned', 'cancelled']
+                ];
+                if (!isset($allowedShipper[$oldStatus]) || !in_array($newStatus, $allowedShipper[$oldStatus])) {
+                    return response()->json(['error' => "Forbidden transition for Shipper: {$oldStatus} -> {$newStatus}"], 403);
+                }
+            } else {
+                 return response()->json(['error' => "Forbidden Role: {$role}"], 403);
+            }
+        }
+
+        // 3. Cập nhật & Gọi qua Kho Hàng
+        $order->update(['status' => $newStatus]);
+
+        $payload = [
+            'items' => $order->items->map(function($i) {
+                return ['variant_id' => $i->variant_id, 'qty' => $i->quantity];
+            })->toArray()
+        ];
+        
+        $token = $request->bearerToken();
+
+        // Xử lý Hủy / Giao / Hoàn Thành - Chỉ kích hoạt nếu trạng thái cũ chưa nằm trong các trạng thái chốt kho
+        if (in_array($newStatus, ['cancelled', 'returned']) && !in_array($oldStatus, ['cancelled', 'returned', 'delivered'])) {
+            \Illuminate\Support\Facades\Http::withToken($token)
+                ->post('http://asmaw-product-service:8002/api/inventory/release', $payload);
+        } elseif ($newStatus === 'delivered' && $oldStatus !== 'delivered') {
             $order->update(['payment_status' => 'paid']);
+            \Illuminate\Support\Facades\Http::withToken($token)
+                ->post('http://asmaw-product-service:8002/api/inventory/finalize', $payload);
         }
 
         return response()->json(['message' => 'Status updated', 'order' => $order]);
+    }
+    public function cancel(Request $request, $id)
+    {
+        $order = Order::with('items')->find($id);
+
+        if (!$order) {
+            return response()->json(['error' => 'Order not found'], 404);
+        }
+
+        if ($order->status !== 'pending') {
+            return response()->json(['error' => 'Only pending orders can be cancelled'], 400);
+        }
+
+        $role = $request->input('auth_user_role');
+        if (!in_array($role, ['admin', 'staff']) && $order->user_id != $request->input('auth_user_id')) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
+        $order->update(['status' => 'cancelled']);
+        
+        $payload = [
+            'items' => $order->items->map(function($i) {
+                return ['variant_id' => $i->variant_id, 'qty' => $i->quantity];
+            })->toArray()
+        ];
+        
+        \Illuminate\Support\Facades\Http::withToken($request->bearerToken())
+            ->post('http://asmaw-product-service:8002/api/inventory/release', $payload);
+        
+        return response()->json(['message' => 'Order cancelled successfully', 'order' => $order]);
     }
 }
