@@ -10,6 +10,12 @@ const CheckoutPage = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
 
+    // Điểm thưởng (Reward Points)
+    const [userPoints, setUserPoints] = React.useState(0);
+    const [usePointsInput, setUsePointsInput] = React.useState('');
+    const [usedPoints, setUsedPoints] = React.useState(0);
+    const [pointsDiscount, setPointsDiscount] = React.useState(0);
+
     const [formData, setFormData] = useState({
         customer_name: user?.name || '',
         customer_phone: '',
@@ -27,9 +33,18 @@ const CheckoutPage = () => {
 
     const [autoFill, setAutoFill] = useState(false);
 
+    // Initial fetch points
+    React.useEffect(() => {
+        if (user) {
+            api.get(`/points/${user.id}`).then(res => {
+                setUserPoints(res.data.points?.balance || 0);
+            }).catch(console.error);
+        }
+    }, [user]);
+
     // Constants for demo
     const shippingFee = 30000;
-    const finalTotal = Math.max(0, cartTotal + shippingFee - discount);
+    const finalTotal = Math.max(0, cartTotal + shippingFee - discount - pointsDiscount);
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -68,6 +83,22 @@ const CheckoutPage = () => {
         }
     };
 
+    const handleApplyPointsLocal = () => {
+        const pts = parseInt(usePointsInput, 10);
+        if (isNaN(pts) || pts <= 0) return toast.error('Vui lòng nhập số điểm hợp lệ');
+        if (pts > userPoints) return toast.error('Điểm của bạn không đủ');
+
+        let discountVal = pts * 1000;
+        if (discountVal > (cartTotal - discount)) {
+            toast.error('Nhập số điểm vượt quá tổng tiền thanh toán cần thiết');
+            return;
+        }
+
+        setUsedPoints(pts);
+        setPointsDiscount(discountVal);
+        toast.success(`Sử dụng ${pts} điểm (-${new Intl.NumberFormat('vi-VN').format(discountVal)} ₫)`);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!cart?.items?.length) return toast.error('Giỏ hàng trống');
@@ -97,6 +128,7 @@ const CheckoutPage = () => {
                 }),
                 shipping_fee: shippingFee,
                 voucher_discount: discount,
+                points_discount: pointsDiscount,
                 coupon_code: discount > 0 ? couponCode : null,
                 total_amount: finalTotal
             };
@@ -104,6 +136,15 @@ const CheckoutPage = () => {
             // 2. Submit order
             const res = await api.post('/orders', orderData);
             const order = res.data.order;
+
+            // Redeem points in backend mapping
+            if (usedPoints > 0) {
+                try {
+                    await api.post('/points/redeem', { points: usedPoints });
+                } catch (ex) {
+                    console.error("Deduct points failed", ex);
+                }
+            }
 
             // 3. Handle Payment Method
             if (formData.payment_method === 'vnpay') {
@@ -210,15 +251,50 @@ const CheckoutPage = () => {
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                                 <input type="text" className="form-input" placeholder="Nhập mã..." value={couponCode} onChange={e => setCouponCode(e.target.value)} style={{ flex: 1, padding: '0.5rem 1rem' }} />
                                 <button type="button" className="btn btn-outline" onClick={handleApplyCoupon} disabled={applyingCoupon || !couponCode} style={{ padding: '0.5rem 1.5rem' }}>
-                                    {applyingCoupon ? 'Đang kiểm tra...' : 'Áp Dụng'}
+                                    {applyingCoupon ? 'Kiểm tra...' : 'Áp Dụng'}
                                 </button>
                             </div>
                         </div>
 
+                        {/* Reward Points Modudle */}
+                        {(userPoints > 0) && (
+                            <div style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px dashed var(--color-accent)', borderRadius: '4px', backgroundColor: '#fdfdfd' }}>
+                                <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.5rem', color: 'var(--color-text-muted)' }}>
+                                    <span>Tích điểm</span>
+                                    <span style={{ fontWeight: 600, color: 'var(--color-accent)' }}>Khả dụng: {userPoints}</span>
+                                </label>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        placeholder="Số điểm muốn dùng..."
+                                        value={usePointsInput}
+                                        onChange={e => setUsePointsInput(e.target.value)}
+                                        style={{ flex: 1, padding: '0.5rem 1rem' }}
+                                        max={userPoints}
+                                        disabled={usedPoints > 0}
+                                    />
+                                    {usedPoints > 0 ? (
+                                        <button type="button" className="btn btn-outline" onClick={() => { setUsedPoints(0); setPointsDiscount(0); setUsePointsInput(''); }} style={{ padding: '0.5rem 1rem', borderColor: '#ef4444', color: '#ef4444' }}>Hủy Bỏ</button>
+                                    ) : (
+                                        <button type="button" className="btn btn-outline" onClick={handleApplyPointsLocal} disabled={!usePointsInput} style={{ padding: '0.5rem 1.5rem' }}>Dùng</button>
+                                    )}
+                                </div>
+                                <span style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.5rem', display: 'block' }}>Quy đổi: 1 điểm = 1,000₫</span>
+                            </div>
+                        )}
+
                         {discount > 0 && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', color: 'var(--color-success)', fontWeight: 500 }}>
-                                <span>Khuyến mãi (Coupon):</span>
+                                <span>Mã khuyến mãi:</span>
                                 <span>-{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(discount)}</span>
+                            </div>
+                        )}
+
+                        {pointsDiscount > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', color: 'var(--color-accent)', fontWeight: 500 }}>
+                                <span>Trừ điểm thành viên:</span>
+                                <span>-{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(pointsDiscount)}</span>
                             </div>
                         )}
 

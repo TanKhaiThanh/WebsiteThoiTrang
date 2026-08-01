@@ -2,14 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const ProfilePage = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [orders, setOrders] = useState([]);
     const validHash = window.location.hash.replace('#', '');
-    const initialTab = ['orders', 'profile'].includes(validHash) ? validHash : 'orders';
+    const initialTab = ['orders', 'profile', 'points'].includes(validHash) ? validHash : 'orders';
     const [activeTab, setActiveTab] = useState(initialTab);
+
+    // Points state
+    const [pointData, setPointData] = useState(null);
+    const [pointHistory, setPointHistory] = useState([]);
+
+    // Modal states
+    const [cancelModalOpen, setCancelModalOpen] = useState(false);
+    const [returnModalOpen, setReturnModalOpen] = useState(false);
+    const [selectedOrder, setSelectedOrder] = useState(null);
+    const [returnReason, setReturnReason] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         window.location.hash = activeTab;
@@ -31,6 +43,11 @@ const ProfilePage = () => {
         } else {
             // Fetch orders logic if needed
             api.get('/orders').then(res => setOrders(res.data.data)).catch(console.error);
+            // Fetch point logic
+            api.get(`/points/${user.id}`).then(res => {
+                setPointData(res.data.points);
+                setPointHistory(res.data.history);
+            }).catch(console.error);
         }
     }, [user, navigate]);
 
@@ -80,6 +97,12 @@ const ProfilePage = () => {
                         >
                             Hồ Sơ Của Tôi
                         </li>
+                        <li
+                            onClick={() => setActiveTab('points')}
+                            style={{ fontWeight: activeTab === 'points' ? 600 : 400, color: activeTab === 'points' ? 'var(--color-primary)' : 'var(--color-text-muted)', cursor: 'pointer' }}
+                        >
+                            Thành Viên & Điểm Thưởng
+                        </li>
                         {['admin', 'staff'].includes(user.role) && (
                             <li style={{ color: 'var(--color-accent)', fontWeight: 'bold', marginTop: '1rem' }}>
                                 Quản Trị Hệ Thống (Admin)
@@ -120,17 +143,9 @@ const ProfilePage = () => {
                                                             className="btn btn-outline"
                                                             style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', borderColor: '#ef4444', color: '#ef4444' }}
                                                             onClick={async () => {
-                                                                // Mock prompt for now until custom modal is built
-                                                                const reason = window.prompt("Nhập lý do đổi/trả hàng:");
-                                                                if (reason) {
-                                                                    try {
-                                                                        const { toast } = await import('sonner');
-                                                                        await api.post('/returns', { order_id: order.id, reason });
-                                                                        toast.success("Đã gửi yêu cầu hoàn trả thành công. Vui lòng chờ phản hồi.");
-                                                                    } catch (e) {
-                                                                        console.error(e);
-                                                                    }
-                                                                }
+                                                                setSelectedOrder(order);
+                                                                setReturnReason('');
+                                                                setReturnModalOpen(true);
                                                             }}
                                                         >Hoàn / Đổi Trả</button>
                                                     ) : order.status === 'pending' ? (
@@ -138,18 +153,8 @@ const ProfilePage = () => {
                                                             className="btn btn-outline"
                                                             style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', borderColor: '#ef4444', color: '#ef4444' }}
                                                             onClick={async () => {
-                                                                const confirm = window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này không?");
-                                                                if (confirm) {
-                                                                    try {
-                                                                        const { toast } = await import('sonner');
-                                                                        await api.post(`/orders/${order.id}/cancel`);
-                                                                        toast.success("Hủy đơn hàng thành công.");
-                                                                        setOrders(orders.map(o => o.id === order.id ? { ...o, status: 'cancelled' } : o));
-                                                                    } catch (e) {
-                                                                        const { toast } = await import('sonner');
-                                                                        toast.error(e.response?.data?.error || "Lỗi khi hủy đơn hàng");
-                                                                    }
-                                                                }
+                                                                setSelectedOrder(order);
+                                                                setCancelModalOpen(true);
                                                             }}
                                                         >Hủy Đơn</button>
                                                     ) : (
@@ -199,8 +204,149 @@ const ProfilePage = () => {
                             </form>
                         </>
                     )}
+
+                    {activeTab === 'points' && (
+                        <>
+                            <h3 style={{ textTransform: 'uppercase', fontSize: '1.2rem', marginBottom: '1.5rem' }}>Điểm Thưởng Của Tôi</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+                                <div style={{ backgroundColor: '#f9fafb', padding: '1.5rem', borderRadius: '8px', border: '1px solid var(--color-border)', textAlign: 'center' }}>
+                                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Khả dụng</p>
+                                    <h4 style={{ fontSize: '2rem', fontFamily: 'var(--font-serif)', color: 'var(--color-accent)' }}>{pointData?.balance || 0}</h4>
+                                </div>
+                                <div style={{ backgroundColor: '#f9fafb', padding: '1.5rem', borderRadius: '8px', border: '1px solid var(--color-border)', textAlign: 'center' }}>
+                                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Đã Tích Lũy</p>
+                                    <h4 style={{ fontSize: '2rem', fontFamily: 'var(--font-serif)' }}>{pointData?.total_earned || 0}</h4>
+                                </div>
+                                <div style={{ backgroundColor: '#f9fafb', padding: '1.5rem', borderRadius: '8px', border: '1px solid var(--color-border)', textAlign: 'center' }}>
+                                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Đã Sử Dụng</p>
+                                    <h4 style={{ fontSize: '2rem', fontFamily: 'var(--font-serif)' }}>{pointData?.total_spent || 0}</h4>
+                                </div>
+                            </div>
+
+                            <h4 style={{ fontSize: '1rem', marginBottom: '1rem' }}>Lịch Sử Giao Dịch</h4>
+                            {pointHistory.length === 0 ? (
+                                <p style={{ color: 'var(--color-text-muted)' }}>Bạn chưa có giao dịch điểm nào.</p>
+                            ) : (
+                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
+                                            <th style={{ padding: '1rem 0' }}>Ngày</th>
+                                            <th style={{ padding: '1rem 0' }}>Loại</th>
+                                            <th style={{ padding: '1rem 0', textAlign: 'right', paddingRight: '1rem' }}>Điểm</th>
+                                            <th style={{ padding: '1rem 0' }}>Diễn giải</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {pointHistory.map(tx => (
+                                            <tr key={tx.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                                <td style={{ padding: '1rem 0', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{new Date(tx.created_at).toLocaleDateString('vi-VN')}</td>
+                                                <td style={{ padding: '1rem 0' }}>
+                                                    <span style={{
+                                                        padding: '0.2rem 0.5rem',
+                                                        borderRadius: '4px',
+                                                        fontSize: '0.75rem',
+                                                        textTransform: 'uppercase',
+                                                        backgroundColor: tx.type === 'earn' ? '#dcfce7' : '#fee2e2',
+                                                        color: tx.type === 'earn' ? '#166534' : '#991b1b'
+                                                    }}>
+                                                        {tx.type === 'earn' ? 'Tích thêm' : 'Đổi thưởng'}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '1rem 0', textAlign: 'right', paddingRight: '1rem', fontWeight: 'bold', color: tx.amount > 0 ? '#16a34a' : '#dc2626' }}>
+                                                    {tx.amount > 0 ? `+${tx.amount}` : tx.amount}
+                                                </td>
+                                                <td style={{ padding: '1rem 0', fontSize: '0.9rem' }}>{tx.description}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </>
+                    )}
                 </div>
             </div>
+            {/* Modal Hủy Đơn */}
+            <AnimatePresence>
+                {cancelModalOpen && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '400px', width: '90%' }}>
+                            <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem', fontFamily: 'var(--font-serif)', color: '#ef4444' }}>Xác Nhận Hủy Đơn Hàng</h3>
+                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+                                Bạn có chắc chắn muốn hủy đơn hàng <strong>{selectedOrder?.order_number}</strong>? Hành động này không thể hoàn tác.
+                            </p>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                                <button className="btn btn-outline" onClick={() => setCancelModalOpen(false)} disabled={isSubmitting}>Hủy Bỏ</button>
+                                <button className="btn btn-primary" onClick={async () => {
+                                    if (!selectedOrder) return;
+                                    setIsSubmitting(true);
+                                    try {
+                                        const { toast } = await import('sonner');
+                                        await api.post(`/orders/${selectedOrder.id}/cancel`);
+                                        toast.success("Hủy đơn hàng thành công.");
+                                        setOrders(orders.map(o => o.id === selectedOrder.id ? { ...o, status: 'cancelled' } : o));
+                                        setCancelModalOpen(false);
+                                    } catch (e) {
+                                        const { toast } = await import('sonner');
+                                        toast.error(e.response?.data?.error || "Lỗi khi hủy đơn hàng");
+                                    } finally {
+                                        setIsSubmitting(false);
+                                    }
+                                }} disabled={isSubmitting} style={{ backgroundColor: '#ef4444', borderColor: '#ef4444' }}>
+                                    {isSubmitting ? 'ĐANG XỬ LÝ...' : 'ĐỒNG Ý HỦY'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Modal Hoàn/Đổi Trả */}
+            <AnimatePresence>
+                {returnModalOpen && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '500px', width: '90%' }}>
+                            <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem', fontFamily: 'var(--font-serif)' }}>Yêu Cầu Hoàn / Đổi Trả Giao Dịch</h3>
+                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '1rem', fontSize: '0.9rem' }}>
+                                Vui lòng cho chúng tôi biết chi tiết lý do ngài muốn đổi hoặc trả lại đơn hàng <strong>{selectedOrder?.order_number}</strong>.
+                            </p>
+                            <textarea
+                                className="form-input"
+                                rows={4}
+                                placeholder="Lý do đổi/trả hàng (Bắt buộc)..."
+                                value={returnReason}
+                                onChange={(e) => setReturnReason(e.target.value)}
+                                style={{ marginBottom: '1.5rem', resize: 'vertical' }}
+                            />
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                                <button className="btn btn-outline" onClick={() => setReturnModalOpen(false)} disabled={isSubmitting}>Hủy Bỏ</button>
+                                <button className="btn btn-primary" onClick={async () => {
+                                    if (!selectedOrder || !returnReason.trim()) {
+                                        const { toast } = await import('sonner');
+                                        toast.error("Vui lòng nhập lý do đổi/trả hàng");
+                                        return;
+                                    }
+                                    setIsSubmitting(true);
+                                    try {
+                                        const { toast } = await import('sonner');
+                                        await api.post('/returns', { order_id: selectedOrder.id, reason: returnReason });
+                                        toast.success("Đã gửi yêu cầu hoàn trả thành công. Vui lòng chờ phản hồi.");
+                                        setReturnModalOpen(false);
+                                    } catch (e) {
+                                        const { toast } = await import('sonner');
+                                        toast.error(e.response?.data?.error || "Lỗi khi gửi yêu cầu đổi/trả hàng");
+                                    } finally {
+                                        setIsSubmitting(false);
+                                    }
+                                }} disabled={isSubmitting}>
+                                    {isSubmitting ? 'ĐANG GỬI...' : 'GỬI YÊU CẦU'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

@@ -52,16 +52,53 @@ export const CartProvider = ({ children }) => {
         fetchCart();
     }, [user]);
 
-    const addToCart = async (productId, variantId, quantity, price) => {
+    const addToCart = async (productId, variantId, quantity, price, productData = null) => {
         try {
+            // OPTIMISTIC UI: Cập nhật Giỏ Hàng trên màn hình ngay tắp lự
+            setCart(prev => {
+                const newCart = prev ? { ...prev, items: [...(prev.items || [])] } : { items: [] };
+                const existing = newCart.items.findIndex(i => i.product_id === productId && i.variant_id === variantId);
+
+                let details = null;
+                if (productData) {
+                    details = {
+                        name: productData.name,
+                        images: productData.images, // Để load hình Thumbnail
+                        primary_image: productData.images && productData.images.length > 0 ? productData.images[0] : null,
+                        variants: productData.variants // Để component Cart load đc Color và Size
+                    };
+                }
+
+                if (existing >= 0) {
+                    newCart.items[existing].quantity += quantity;
+                    if (details) newCart.items[existing].product_details = details;
+                } else {
+                    newCart.items.push({
+                        id: 'temp_' + Date.now(),
+                        product_id: productId,
+                        variant_id: variantId,
+                        quantity,
+                        price,
+                        product_details: details
+                    });
+                }
+                return newCart;
+            });
+
+            // Ghi ngầm xuống Backend, KHÔNG AWAIT để giải phóng UI
             const headers = !user ? { 'X-Session-ID': getSessionId() } : {};
-            const res = await api.post('/cart/items', {
+            api.post('/cart/items', {
                 product_id: productId,
                 variant_id: variantId,
                 quantity,
                 price
-            }, { headers });
-            setCart(await rehydrateCart(res.data.cart));
+            }, { headers }).then(async (res) => {
+                setCart(await rehydrateCart(res.data.cart)); // Sync accurate DB values sau
+            }).catch(e => {
+                console.error('Lỗi khi lưu giỏ hàng ngầm:', e);
+                fetchCart(); // Rollback nếu lỗi
+            });
+
             return { success: true };
         } catch (error) {
             return { success: false, error: 'Failed to add item' };
@@ -73,6 +110,7 @@ export const CartProvider = ({ children }) => {
         const originalCart = { ...cart, items: cart.items.map(i => ({ ...i })) };
 
         try {
+            // OPTIMISTIC UI: Phản hồi tăng giảm số lượng tức thời
             setCart(prev => {
                 if (!prev || !prev.items) return prev;
                 return {
@@ -81,22 +119,44 @@ export const CartProvider = ({ children }) => {
                 };
             });
 
+            // Chạy ngầm API
             const headers = !user ? { 'X-Session-ID': getSessionId() } : {};
-            const res = await api.put(`/cart/items/${itemId}`, { quantity }, { headers });
-            setCart(await rehydrateCart(res.data.cart));
+            api.put(`/cart/items/${itemId}`, { quantity }, { headers })
+                .then(async (res) => {
+                    setCart(await rehydrateCart(res.data.cart));
+                })
+                .catch(e => {
+                    console.error('Update quantity failed', e);
+                    setCart(originalCart); // Rollback
+                });
         } catch (error) {
-            console.error('Update quantity failed', error);
+            console.error('Update quantity logic error', error);
             setCart(originalCart);
         }
     };
 
     const removeItem = async (itemId) => {
+        const originalCart = { ...cart, items: cart.items.map(i => ({ ...i })) };
+        // OPTIMISTIC UI: Xóa khỏi màn hình ngay lập tức
+        setCart(prev => {
+            if (!prev || !prev.items) return prev;
+            return { ...prev, items: prev.items.filter(item => item.id !== itemId) };
+        });
+
         try {
+            // Chạy ngầm lệnh xóa ở Database
             const headers = !user ? { 'X-Session-ID': getSessionId() } : {};
-            const res = await api.delete(`/cart/items/${itemId}`, { headers });
-            setCart(await rehydrateCart(res.data.cart));
+            api.delete(`/cart/items/${itemId}`, { headers })
+                .then(async (res) => {
+                    setCart(await rehydrateCart(res.data.cart));
+                })
+                .catch(e => {
+                    console.error('Remove item failed', e);
+                    setCart(originalCart); // Rollback
+                });
         } catch (error) {
-            console.error('Remove item failed', error);
+            console.error('Remove item local logic failed', error);
+            setCart(originalCart);
         }
     };
 

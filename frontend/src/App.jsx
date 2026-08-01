@@ -20,8 +20,10 @@ import CartPage from './pages/CartPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import PaymentCallbackPage from './pages/PaymentCallbackPage';
 import CheckoutPage from './pages/CheckoutPage';
 import ProfilePage from './pages/ProfilePage';
+import NewsPage from './pages/NewsPage';
 import ForbiddenPage from './pages/ForbiddenPage';
 import WishlistPage from './pages/WishlistPage';
 
@@ -63,6 +65,7 @@ function App() {
                             {/* 1. Public Routes with Header & Footer */}
                             <Route element={<PublicLayout />}>
                                 <Route path="/" element={<HomePage />} />
+                                <Route path="/news" element={<NewsPage />} />
                                 <Route path="/products" element={<ProductListPage />} />
                                 <Route path="/products/:id" element={<ProductDetailPage />} />
                                 <Route path="/cart" element={<CartPage />} />
@@ -71,6 +74,7 @@ function App() {
                                 <Route path="/login" element={<LoginPage />} />
                                 <Route path="/register" element={<RegisterPage />} />
                                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                                <Route path="/payment/callback" element={<PaymentCallbackPage />} />
                                 <Route path="/profile" element={
                                     <ProtectedRoute>
                                         <ProfilePage />

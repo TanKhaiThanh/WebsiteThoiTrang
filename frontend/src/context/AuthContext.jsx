@@ -24,18 +24,15 @@ export const AuthProvider = ({ children }) => {
 
             // API merge requires token! Set it first!
             localStorage.setItem('asmaw_token', token);
-
-            const sessionId = localStorage.getItem('asmaw_session_id');
-            if (sessionId) {
-                try {
-                    await api.post('/cart/merge', { session_id: sessionId }, { headers: { Authorization: `Bearer ${token}` } });
-                } catch (e) {
-                    console.error('Lỗi khi merge giỏ hàng:', e);
-                }
-            }
-
             localStorage.setItem('asmaw_user', JSON.stringify(user));
             setUser(user);
+
+            // Execute Cart merge async in background, DO NOT AWAIT to unblock Login UI!
+            const sessionId = localStorage.getItem('asmaw_session_id');
+            if (sessionId) {
+                api.post('/cart/merge', { session_id: sessionId }, { headers: { Authorization: `Bearer ${token}` } })
+                    .catch(e => console.error('Lỗi ngầm khi merge giỏ hàng:', e));
+            }
 
             return { success: true };
         } catch (error) {
@@ -48,17 +45,12 @@ export const AuthProvider = ({ children }) => {
             const response = await api.post('/auth/register', userData);
             const { user, token } = response.data;
 
-            // Merge guest cart if exists
+            // Merge guest cart if exists, do in BACKGROUND!
             const sessionId = localStorage.getItem('asmaw_session_id');
             if (sessionId) {
-                try {
-                    // API requires auth token to perform merge! 
-                    // So we MUST set token first!
-                    localStorage.setItem('asmaw_token', token);
-                    await api.post('/cart/merge', { session_id: sessionId }, { headers: { Authorization: `Bearer ${token}` } });
-                } catch (e) {
-                    console.error('Lỗi khi merge giỏ hàng lúc đăng ký:', e);
-                }
+                localStorage.setItem('asmaw_token', token);
+                api.post('/cart/merge', { session_id: sessionId }, { headers: { Authorization: `Bearer ${token}` } })
+                    .catch(e => console.error('Lỗi ngầm khi merge giỏ lúc đăng ký:', e));
             } else {
                 localStorage.setItem('asmaw_token', token);
             }

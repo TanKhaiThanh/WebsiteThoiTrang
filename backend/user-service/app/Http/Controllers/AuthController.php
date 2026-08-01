@@ -37,7 +37,7 @@ class AuthController extends Controller
         $token = $this->generateToken($user);
 
         return response()->json([
-            'message' => 'Registration successful',
+            'message' => 'Đăng ký tài khoản thành công.',
             'user' => $this->formatUser($user),
             'token' => $token,
         ], 201);
@@ -68,7 +68,7 @@ class AuthController extends Controller
         \Illuminate\Support\Facades\Cache::put('reset_token_' . $request->email, $token, now()->addMinutes(15));
 
         return response()->json([
-            'message' => 'Request successful',
+            'message' => 'Gửi yêu cầu thành công.',
             'reset_token' => $token
         ], 200);
     }
@@ -125,17 +125,17 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['error' => 'Invalid credentials'], 401);
+            return response()->json(['error' => 'Email hoặc mật khẩu không chính xác.'], 401);
         }
 
         if ($user->is_banned) {
-            return response()->json(['error' => 'Your account has been banned'], 403);
+            return response()->json(['error' => 'Tài khoản của bạn đã bị khóa.'], 403);
         }
 
         $token = $this->generateToken($user);
 
         return response()->json([
-            'message' => 'Login successful',
+            'message' => 'Đăng nhập thành công.',
             'user' => $this->formatUser($user),
             'token' => $token,
         ]);
@@ -146,7 +146,7 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
-        return response()->json(['message' => 'Logged out successfully']);
+        return response()->json(['message' => 'Đăng xuất thành công.']);
     }
 
     /**
@@ -157,7 +157,7 @@ class AuthController extends Controller
         $user = User::find($request->input('auth_user_id'));
 
         if (!$user) {
-            return response()->json(['error' => 'User not found'], 404);
+            return response()->json(['error' => 'Tài khoản không tồn tại trong hệ thống.'], 404);
         }
 
         return response()->json(['user' => $this->formatUser($user)]);
@@ -188,7 +188,7 @@ class AuthController extends Controller
         $user->update($request->only(['name', 'phone', 'address', 'avatar']));
 
         return response()->json([
-            'message' => 'Profile updated',
+            'message' => 'Cập nhật hồ sơ thành công.',
             'user' => $this->formatUser($user),
         ]);
     }
