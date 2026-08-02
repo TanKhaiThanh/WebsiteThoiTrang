@@ -25,6 +25,15 @@ const STATUS_COLORS = {
     returned: '#a855f7'
 };
 
+const STATUS_LABELS = {
+    pending: 'Chờ xử lý',
+    confirmed: 'Đã xác nhận',
+    shipping: 'Đang giao',
+    delivered: 'Đã giao',
+    cancelled: 'Đã hủy',
+    returned: 'Đổi trả'
+};
+
 const DashboardPage = () => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
@@ -79,7 +88,7 @@ const DashboardPage = () => {
     const pieData = orderStats?.orders_by_status
         ? Object.entries(orderStats.orders_by_status)
             .filter(([_, count]) => count > 0)
-            .map(([status, count]) => ({ name: status, value: count }))
+            .map(([status, count]) => ({ key: status, name: STATUS_LABELS[status] || status, value: count }))
         : [];
 
     return (
@@ -174,7 +183,7 @@ const DashboardPage = () => {
                                         dataKey="value"
                                     >
                                         {pieData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || COLORS[index % COLORS.length]} />
+                                            <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.key] || COLORS[index % COLORS.length]} />
                                         ))}
                                     </Pie>
                                     <RechartsTooltip />
@@ -215,11 +224,11 @@ const DashboardPage = () => {
                                                 padding: '0.25rem 0.5rem',
                                                 borderRadius: '99px',
                                                 fontSize: '0.75rem',
-                                                fontWeight: 600,
+                                                fontWeight: 700,
                                                 backgroundColor: STATUS_COLORS[order.status] + '33',
                                                 color: STATUS_COLORS[order.status]
                                             }}>
-                                                {order.status.toUpperCase()}
+                                                {(STATUS_LABELS[order.status] || order.status).toUpperCase()}
                                             </span>
                                         </td>
                                     </tr>

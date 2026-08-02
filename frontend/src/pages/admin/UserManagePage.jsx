@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Filter, ShieldAlert, ShieldCheck, MoreVertical, Edit, UserX, UserCheck } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'sonner';
+import Pagination from '../../components/Pagination';
 
 const UserManagePage = () => {
     const [users, setUsers] = useState([]);
@@ -215,28 +216,7 @@ const UserManagePage = () => {
                     </tbody>
                 </table>
 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '1rem', borderTop: '1px solid var(--color-border)', gap: '0.5rem' }}>
-                        <button
-                            disabled={page === 1}
-                            onClick={() => setPage(page - 1)}
-                            style={{ padding: '0.25rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}
-                        >
-                            Trang Trước
-                        </button>
-                        <span style={{ padding: '0.25rem 0.5rem', fontWeight: 500 }}>
-                            {page} / {totalPages}
-                        </span>
-                        <button
-                            disabled={page >= totalPages}
-                            onClick={() => setPage(page + 1)}
-                            style={{ padding: '0.25rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: '4px', cursor: page >= totalPages ? 'not-allowed' : 'pointer', opacity: page >= totalPages ? 0.5 : 1 }}
-                        >
-                            Trang Sau
-                        </button>
-                    </div>
-                )}
+                <Pagination page={page} totalPages={totalPages} setPage={setPage} />
             </div>
         </div>
     );

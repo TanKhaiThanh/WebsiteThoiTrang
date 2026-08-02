@@ -3,6 +3,7 @@ import { Search, Eye, Filter, Edit } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
+import Pagination from '../../components/Pagination';
 
 const STATUS_COLORS = {
     pending: '#FFBB28',      // Vàng (Chờ xử lý)
@@ -203,23 +204,7 @@ const OrderManagePage = () => {
                     </tbody>
                 </table>
 
-                {totalPages > 1 && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '1rem', borderTop: '1px solid var(--color-border)', gap: '0.5rem' }}>
-                        <button
-                            disabled={page === 1} onClick={() => setPage(page - 1)}
-                            style={{ padding: '0.25rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: '4px' }}
-                        >
-                            Trang Trước
-                        </button>
-                        <span style={{ padding: '0.25rem 0.5rem', fontWeight: 500 }}>{page} / {totalPages}</span>
-                        <button
-                            disabled={page >= totalPages} onClick={() => setPage(page + 1)}
-                            style={{ padding: '0.25rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: '4px' }}
-                        >
-                            Trang Sau
-                        </button>
-                    </div>
-                )}
+                <Pagination page={page} totalPages={totalPages} setPage={setPage} />
             </div>
 
             {/* Order Detail Modal */}

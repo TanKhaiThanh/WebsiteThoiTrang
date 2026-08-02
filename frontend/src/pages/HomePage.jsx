@@ -106,7 +106,7 @@ const HomePage = () => {
                     initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}
                     style={{ position: 'relative', zIndex: 1, padding: '0 1rem' }}
                 >
-                    <p style={{ color: heroBanner ? '#fff' : '#c49a45', fontSize: '0.85rem', letterSpacing: '5px', textTransform: 'uppercase', marginBottom: '1.5rem', fontWeight: 600 }}>{heroBanner?.title || 'New Collection 2024'}</p>
+                    <p style={{ color: heroBanner ? '#fff' : '#c49a45', fontSize: '0.85rem', letterSpacing: '5px', textTransform: 'uppercase', marginBottom: '1.5rem', fontWeight: 600 }}>{heroBanner?.title || 'New Collection 2026'}</p>
                     <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '5rem', color: '#fff', marginBottom: '2.5rem', textShadow: '0 4px 15px rgba(0,0,0,0.15)', fontWeight: 'normal' }}>Thanh Lịch & Sang Trọng</h1>
                     <Link to={heroBanner?.link_url || "/products"} style={{ display: 'inline-block', backgroundColor: '#8a6e3e', color: '#fff', padding: '1rem 3rem', fontSize: '0.85rem', letterSpacing: '2px', textTransform: 'uppercase', textDecoration: 'none', transition: 'background-color 0.3s' }}>
                         Khám Phá Ngay

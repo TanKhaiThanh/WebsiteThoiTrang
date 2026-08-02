@@ -43,10 +43,12 @@ const ProductDetailPage = () => {
                 setProduct(data);
 
                 // Defaults
-                if (data.images?.length > 0) setMainImage(data.images[0].url);
                 if (data.variants?.length > 0) {
                     const defaultColor = data.variants[0].color;
                     setSelectedColor(defaultColor);
+
+                    const defaultImage = data.images?.find(i => i.color === defaultColor) || data.images?.[0];
+                    if (defaultImage) setMainImage(defaultImage.url);
 
                     const availableSizes = [...new Set(data.variants.filter(v => v.color === defaultColor).map(v => v.size))];
                     const hasSizeS = availableSizes.find(s => s.toUpperCase() === 'S');
@@ -190,8 +192,8 @@ const ProductDetailPage = () => {
                         <h4 style={{ fontSize: '0.9rem', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Màu sắc</h4>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                             {colors.map(color => {
-                                const colorMap = { 'Trắng': '#ffffff', 'Đen': '#000000', 'Đỏ': '#ef4444', 'Xanh': '#3b82f6', 'Vàng': '#eab308', 'Be': '#f4ebd8', 'Tím Than': '#1f2937' };
-                                const displayColor = color.startsWith('#') ? color : (colorMap[color] || '#a1a1aa');
+                                const colorMap = { 'trắng': '#ffffff', 'đen': '#000000', 'đỏ': '#ef4444', 'xanh': '#3b82f6', 'xanh lá': '#16a34a', 'vàng': '#eab308', 'be': '#f4ebd8', 'tím than': '#1e3a8a', 'hồng': '#ec4899', 'nâu': '#78350f', 'cam': '#f97316', 'xám': '#9ca3af', 'tím': '#8b5cf6' };
+                                const displayColor = color.startsWith('#') ? color : (colorMap[color.toLowerCase()] || '#a1a1aa');
 
                                 return (
                                     <button

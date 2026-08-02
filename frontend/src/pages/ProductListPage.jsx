@@ -289,8 +289,8 @@ const ProductListPage = () => {
                                 const isActive = selectedColors.includes(color);
                                 // A smart way to parse simple colors vs Hex. We render a circle.
                                 // If color name is 'Trắng', we map it to '#fff'. (Basic mapping fallback)
-                                const colorMap = { 'Trắng': '#ffffff', 'Đen': '#000000', 'Đỏ': '#ef4444', 'Xanh': '#3b82f6', 'Xanh lá': '#166534', 'Vàng': '#eab308', 'Be': '#f4ebd8', 'Tím Than': '#1f2937' };
-                                const displayColor = color.startsWith('#') ? color : (colorMap[color] || '#a1a1aa');
+                                const colorMap = { 'trắng': '#ffffff', 'đen': '#000000', 'đỏ': '#ef4444', 'xanh': '#3b82f6', 'xanh lá': '#16a34a', 'vàng': '#eab308', 'be': '#f4ebd8', 'tím than': '#1e3a8a', 'hồng': '#ec4899', 'nâu': '#78350f', 'cam': '#f97316', 'xám': '#9ca3af', 'tím': '#8b5cf6' };
+                                const displayColor = color.startsWith('#') ? color : (colorMap[color.toLowerCase()] || '#a1a1aa');
 
                                 return (
                                     <button
@@ -355,7 +355,7 @@ const ProductListPage = () => {
                     {/* Loading State / Empty / Products */}
                     {loading ? (
                         <div style={{ textAlign: 'center', padding: '6rem 0', color: '#9ca3af', fontFamily: 'var(--font-serif)', fontSize: '1.2rem', fontStyle: 'italic' }}>
-                            Đang tải kỳ quan thị giác...
+                            Đang tải sản phẩm...
                         </div>
                     ) : products.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '6rem 0', color: '#9ca3af', fontSize: '1rem' }}>

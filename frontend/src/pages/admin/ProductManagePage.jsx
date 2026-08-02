@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit, Trash2, Image as ImageIcon, CheckCircle, Tag, X, Upload, ChevronDown, ChevronRight } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'sonner';
+import Pagination from '../../components/Pagination';
 
 const formatCurrency = (amount) => {
     if (!amount) return '0 ₫';
@@ -120,17 +121,55 @@ const ProductFormModal = ({ onClose, onSuccess, initialData, categories }) => {
         setFormData(prev => ({ ...prev, variants: newVariants }));
     };
 
+    const compressImage = (file) => {
+        return new Promise((resolve, reject) => {
+            if (!file.type.startsWith('image/') || file.size < 1024 * 1024) { // Only compress images > 1MB
+                return resolve(file);
+            }
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    let { width, height } = img;
+                    const maxDim = 1200;
+                    if (width > maxDim || height > maxDim) {
+                        if (width > height) {
+                            height = Math.round((height * maxDim) / width);
+                            width = maxDim;
+                        } else {
+                            width = Math.round((width * maxDim) / height);
+                            height = maxDim;
+                        }
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    canvas.toBlob((blob) => {
+                        resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+                    }, 'image/jpeg', 0.82); // 82% quality
+                };
+                img.onerror = (err) => reject(err);
+            };
+            reader.onerror = (err) => reject(err);
+        });
+    };
+
     const handleImageUpload = async (e, color) => {
         const files = Array.from(e.target.files);
         if (!files.length) return;
 
-        // Bỏ qua bước gọi API real-time ở form để tối ưu, hoặc gọi API '/media/upload-multiple' ngay lúc chọn.
-        // Ở đây ta gọi API ngay để lấy URL:
-        const payload = new FormData();
-        files.forEach(f => payload.append('images[]', f));
-
         try {
-            toast.loading("Đang tải ảnh lên...");
+            toast.loading("Đang xử lý và tải ảnh lên...");
+
+            // Compress all files before uploading
+            const compressedFiles = await Promise.all(files.map(f => compressImage(f)));
+
+            const payload = new FormData();
+            compressedFiles.forEach(f => payload.append('images[]', f));
             const res = await api.post('/media/upload-multiple', payload, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
@@ -682,14 +721,7 @@ const ProductManagePage = () => {
                         </tbody>
                     </table>
 
-                    {/* Pagination */}
-                    {totalPages > 1 && (
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '1rem', borderTop: '1px solid var(--color-border)', gap: '0.5rem' }}>
-                            <button disabled={page === 1} onClick={() => setPage(page - 1)} style={{ padding: '0.25rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: '4px' }}>Trang Trước</button>
-                            <span style={{ padding: '0.25rem 0.5rem', fontWeight: 500 }}>{page} / {totalPages}</span>
-                            <button disabled={page >= totalPages} onClick={() => setPage(page + 1)} style={{ padding: '0.25rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: '4px' }}>Trang Sau</button>
-                        </div>
-                    )}
+                    <Pagination page={page} totalPages={totalPages} setPage={setPage} />
                 </div>
             )}
 

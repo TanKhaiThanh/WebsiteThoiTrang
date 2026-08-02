@@ -142,11 +142,11 @@ const CouponManagePage = () => {
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
-                    <h1 style={{ fontSize: '2rem', margin: 0 }}>Kho Khuyến Mãi (Coupons)</h1>
+                    <h1 style={{ fontSize: '2rem', margin: 0 }}>Kho Khuyến Mãi</h1>
                     <p style={{ color: 'var(--color-text-muted)' }}>Cấu hình mã giảm giá và chương trình ưu đãi</p>
                 </div>
                 <button onClick={openCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
-                    <Plus size={20} /> Tạo Coupon Kích Cầu
+                    <Plus size={20} /> Tạo mã giảm giá
                 </button>
             </div>
 
@@ -203,7 +203,7 @@ const CouponManagePage = () => {
                                         </td>
                                         <td style={{ padding: '1rem' }}>
                                             <div style={{ fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                <span><Activity size={12} /> {coupon.usage_count}/{coupon.usage_limit || '∞'} lượt</span>
+                                                <span><Activity size={12} /> {coupon.used_count || 0}/{coupon.usage_limit || '∞'} lượt</span>
                                                 {coupon.expires_at && <span><Calendar size={12} /> HSD: {new Date(coupon.expires_at).toLocaleDateString('vi-VN')}</span>}
                                             </div>
                                         </td>

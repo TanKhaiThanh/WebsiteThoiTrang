@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, AlertTriangle, CheckCircle, Package, X, PlusCircle, MinusCircle, Clock } from 'lucide-react';
+import { Search, AlertTriangle, CheckCircle, Package, X, PlusCircle, MinusCircle, Clock, ChevronDown, ChevronRight } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
+import Pagination from '../../components/Pagination';
 
 const InventoryManagePage = () => {
     const { user } = useAuth();
@@ -11,6 +12,7 @@ const InventoryManagePage = () => {
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [expandedProducts, setExpandedProducts] = useState(new Set());
 
     // Modal states
     const [transactionModal, setTransactionModal] = useState({ show: false, type: 'in', variant: null });
@@ -48,15 +50,14 @@ const InventoryManagePage = () => {
         if (page > 1) fetchInventory();
     }, [page]);
 
-    // Flat map products to their variants with product context
-    const flatVariants = products.flatMap(p =>
-        (p.variants || []).map(v => ({
-            ...v,
-            product_name: p.name,
-            product_id: p.id,
-            category_name: p.category?.name || 'Vô danh'
-        }))
-    );
+    const toggleExpand = (id) => {
+        setExpandedProducts(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
 
     const handleTransactionSubmit = async (e) => {
         e.preventDefault();
@@ -149,84 +150,114 @@ const InventoryManagePage = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {loading && flatVariants.length === 0 ? (
+                        {loading && products.length === 0 ? (
                             <tr><td colSpan="6" style={{ padding: '2rem', textAlign: 'center' }}>Đang tải...</td></tr>
-                        ) : flatVariants.length === 0 ? (
+                        ) : products.length === 0 ? (
                             <tr><td colSpan="6" style={{ padding: '2rem', textAlign: 'center' }}>Không có dữ liệu tồn kho.</td></tr>
                         ) : (
-                            flatVariants.map(variant => {
-                                const qty = variant.inventory?.available_qty || 0;
-                                const isLow = qty <= 10;
+                            products.map(product => {
+                                const isExpanded = expandedProducts.has(product.id);
+                                const totalQty = product.variants?.reduce((sum, v) => sum + (v.inventory?.available_qty || 0), 0) || 0;
+                                const totalReservedQty = product.variants?.reduce((sum, v) => sum + (v.inventory?.reserved_qty || 0), 0) || 0;
+                                const isLowProductLevel = product.variants?.some(v => (v.inventory?.available_qty || 0) <= 10);
+
                                 return (
-                                    <tr key={variant.id} style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: isLow ? '#fef2f2' : 'transparent' }}>
-                                        <td style={{ padding: '1rem', fontWeight: 600, fontFamily: 'monospace' }}>{variant.sku}</td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontWeight: 600 }}>{variant.product_name}</div>
-                                            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>{variant.category_name}</div>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ display: 'inline-block', padding: '0.25rem 0.5rem', backgroundColor: '#e2e8f0', borderRadius: '4px', fontSize: '0.85rem' }}>
-                                                {variant.color} - {variant.size}
-                                            </div>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            {isLow ? (
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#dc2626', fontSize: '0.85rem', fontWeight: 600 }}>
-                                                    <AlertTriangle size={16} /> Sắp hết hàng
+                                    <React.Fragment key={product.id}>
+                                        <tr
+                                            onClick={() => toggleExpand(product.id)}
+                                            style={{ backgroundColor: '#f8fafc', cursor: 'pointer', borderBottom: '1px solid var(--color-border)', transition: 'background-color 0.2s' }}
+                                        >
+                                            <td style={{ padding: '1rem', fontWeight: 600, color: '#1e293b' }} colSpan="2">
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                    {isExpanded ? <ChevronDown size={18} color="#64748b" /> : <ChevronRight size={18} color="#64748b" />}
+                                                    <span style={{ fontSize: '1.05rem' }}>{product.name}</span>
+                                                    {isLowProductLevel && (
+                                                        <span style={{ display: 'inline-flex', padding: '0.15rem 0.4rem', backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, marginLeft: '0.5rem' }}>
+                                                            Cần chú ý
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <span style={{ backgroundColor: '#e2e8f0', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.85rem' }}>
+                                                    {product.category?.name || 'Vô danh'}
                                                 </span>
-                                            ) : (
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#16a34a', fontSize: '0.85rem', fontWeight: 600 }}>
-                                                    <CheckCircle size={16} /> An toàn
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td style={{ padding: '1rem', textAlign: 'center', verticalAlign: 'middle' }}>
-                                            <span style={{ fontWeight: 700, fontSize: '1.25rem', display: 'inline-block', minWidth: '40px', padding: '0.2rem 0.5rem', backgroundColor: '#f1f5f9', color: '#334155', borderRadius: '4px', verticalAlign: 'middle' }}>{qty}</span>
-                                        </td>
-                                        <td style={{ padding: '1rem', textAlign: 'center', verticalAlign: 'middle' }}>
-                                            <span style={{ fontWeight: 700, fontSize: '1.1rem', display: 'inline-block', minWidth: '40px', padding: '0.2rem 0.5rem', backgroundColor: '#fff7ed', color: '#d97706', borderRadius: '4px', verticalAlign: 'middle' }}>
-                                                {variant.inventory?.reserved_qty || 0}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '1rem', textAlign: 'center', verticalAlign: 'middle' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
-                                                <button
-                                                    onClick={() => { setFormQty(1); setFormNote(''); setTransactionModal({ show: true, type: 'in', variant }); }}
-                                                    style={{ padding: '0.4rem 0.6rem', borderRadius: '4px', border: '1px solid #10b981', backgroundColor: '#ecfdf5', color: '#059669', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                                    title="Cộng thêm hàng"
-                                                >
-                                                    <PlusCircle size={14} /> Nhập
-                                                </button>
-                                                <button
-                                                    onClick={() => { setFormQty(1); setFormNote(''); setTransactionModal({ show: true, type: 'out', variant }); }}
-                                                    style={{ padding: '0.4rem 0.6rem', borderRadius: '4px', border: '1px solid #ef4444', backgroundColor: '#fef2f2', color: '#dc2626', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                                    title="Trừ bớt hàng"
-                                                >
-                                                    <MinusCircle size={14} /> Xuất
-                                                </button>
-                                                <button
-                                                    onClick={() => handleViewHistory(variant)}
-                                                    style={{ padding: '0.4rem', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#64748b' }}
-                                                    title="Xem Lịch sử giao dịch"
-                                                >
-                                                    <Clock size={16} />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <span style={{ fontWeight: 600, color: 'var(--color-text-muted)' }}>{product.variants?.length || 0} biến thể</span>
+                                            </td>
+                                            <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                                <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{totalQty}</span>
+                                            </td>
+                                            <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                                <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{totalReservedQty}</span>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}></td>
+                                        </tr>
+                                        {isExpanded && product.variants?.map(variant => {
+                                            const qty = variant.inventory?.available_qty || 0;
+                                            const vLow = qty <= 10;
+                                            return (
+                                                <tr key={variant.id} style={{ backgroundColor: vLow ? '#fff5f5' : 'white', borderBottom: '1px solid var(--color-border)' }}>
+                                                    <td style={{ padding: '0.75rem 1rem 0.75rem 3.5rem', fontFamily: 'monospace', fontWeight: 600, color: '#475569' }}>{variant.sku}</td>
+                                                    <td style={{ padding: '0.75rem 1rem' }}></td>
+                                                    <td style={{ padding: '0.75rem 1rem' }}>
+                                                        <div style={{ display: 'inline-block', padding: '0.25rem 0.5rem', backgroundColor: '#f1f5f9', borderRadius: '4px', fontSize: '0.85rem' }}>
+                                                            {variant.color} - {variant.size}
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ padding: '0.75rem 1rem' }}>
+                                                        {vLow ? (
+                                                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#dc2626', fontSize: '0.85rem', fontWeight: 600 }}>
+                                                                <AlertTriangle size={14} /> Sắp hết
+                                                            </span>
+                                                        ) : (
+                                                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#16a34a', fontSize: '0.85rem', fontWeight: 600 }}>
+                                                                <CheckCircle size={14} /> An toàn
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center', verticalAlign: 'middle' }}>
+                                                        <span style={{ fontWeight: 700, fontSize: '1.1rem', display: 'inline-block', minWidth: '40px', padding: '0.1rem 0.4rem', backgroundColor: '#f8fafc', color: '#334155', borderRadius: '4px' }}>{qty}</span>
+                                                    </td>
+                                                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center', verticalAlign: 'middle' }}>
+                                                        <span style={{ fontWeight: 600, fontSize: '1rem', display: 'inline-block', minWidth: '40px', padding: '0.1rem 0.4rem', backgroundColor: '#fff7ed', color: '#d97706', borderRadius: '4px' }}>
+                                                            {variant.inventory?.reserved_qty || 0}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setFormQty(1); setFormNote(''); setTransactionModal({ show: true, type: 'in', variant: { ...variant, product_name: product.name } }); }}
+                                                                style={{ padding: '0.3rem 0.5rem', borderRadius: '4px', border: '1px solid #10b981', backgroundColor: '#ecfdf5', color: '#059669', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.8rem' }}
+                                                            >
+                                                                <PlusCircle size={14} /> Nhập
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setFormQty(1); setFormNote(''); setTransactionModal({ show: true, type: 'out', variant: { ...variant, product_name: product.name } }); }}
+                                                                style={{ padding: '0.3rem 0.5rem', borderRadius: '4px', border: '1px solid #ef4444', backgroundColor: '#fef2f2', color: '#dc2626', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.8rem' }}
+                                                            >
+                                                                <MinusCircle size={14} /> Xuất
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleViewHistory(variant); }}
+                                                                style={{ padding: '0.3rem', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#64748b' }}
+                                                            >
+                                                                <Clock size={14} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </React.Fragment>
                                 );
                             })
                         )}
                     </tbody>
                 </table>
 
-                {totalPages > 1 && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '1rem', borderTop: '1px solid var(--color-border)', gap: '0.5rem' }}>
-                        <button disabled={page === 1} onClick={() => setPage(page - 1)} style={{ padding: '0.25rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: '4px' }}>Trang Trước</button>
-                        <span style={{ padding: '0.25rem 0.5rem', fontWeight: 500 }}>{page} / {totalPages}</span>
-                        <button disabled={page >= totalPages} onClick={() => setPage(page + 1)} style={{ padding: '0.25rem 0.5rem', border: '1px solid var(--color-border)', borderRadius: '4px' }}>Trang Sau</button>
-                    </div>
-                )}
+                <Pagination page={page} totalPages={totalPages} setPage={setPage} />
             </div>
 
             {/* TRANSACTION MODAL */}

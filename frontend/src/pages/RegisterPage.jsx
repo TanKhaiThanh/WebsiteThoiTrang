@@ -73,7 +73,7 @@ const RegisterPage = () => {
                         <input
                             type="email"
                             className="form-input"
-                            placeholder="email@example.com"
+                            placeholder="email@gmail.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
