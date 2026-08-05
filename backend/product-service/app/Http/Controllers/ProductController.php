@@ -90,7 +90,7 @@ class ProductController extends Controller
 
     public function adminIndex(Request $request)
     {
-        $query = Product::with(['category', 'primaryImage', 'variants.inventory']);
+        $query = Product::with(['category', 'primaryImage', 'images', 'variants.inventory']);
 
         // Filter by category (Recursive support for subclasses)
         if ($request->has('category_id') && !empty($request->category_id)) {
@@ -219,6 +219,50 @@ class ProductController extends Controller
 
         if ($request->has('name') && !$request->has('slug')) {
             $product->update(['slug' => Str::slug($request->name) . '-' . Str::random(5)]);
+        }
+
+        if ($request->has('variants') && is_array($request->variants)) {
+            $existingVariantIds = [];
+            foreach ($request->variants as $v) {
+                if (!empty($v['id'])) {
+                    $variant = $product->variants()->find($v['id']);
+                    if ($variant) {
+                        $variant->update([
+                            'color' => $v['color'],
+                            'size' => $v['size'],
+                            'sku' => $v['sku'],
+                            'price_override' => $v['price_override'] ?? null
+                        ]);
+                    }
+                } else {
+                    $variant = $product->variants()->updateOrCreate(
+                        ['color' => $v['color'], 'size' => $v['size']],
+                        ['sku' => $v['sku'], 'price_override' => $v['price_override'] ?? null]
+                    );
+                }
+                
+                if (isset($variant) && $variant) {
+                    $existingVariantIds[] = $variant->id;
+                    
+                    // Update inventory
+                    $inv = Inventory::firstOrCreate(['variant_id' => $variant->id], ['available_qty' => 0]);
+                    if (isset($v['qty'])) {
+                        $inv->update(['available_qty' => $v['qty']]);
+                    }
+                }
+            }
+        }
+
+        if ($request->has('images') && is_array($request->images)) {
+            $product->images()->delete();
+            foreach ($request->images as $img) {
+                $product->images()->create([
+                    'url' => $img['url'],
+                    'color' => $img['color'] ?? null,
+                    'is_primary' => filter_var($img['is_primary'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                    'sort_order' => $img['sort_order'] ?? 0,
+                ]);
+            }
         }
 
         return response()->json([

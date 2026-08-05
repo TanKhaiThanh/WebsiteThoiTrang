@@ -84,6 +84,14 @@ class InventoryController extends Controller
         DB::beginTransaction();
         try {
             foreach ($items as $item) {
+                $variant = DB::table('product_variants')
+                    ->join('products', 'products.id', '=', 'product_variants.product_id')
+                    ->select('product_variants.price_override', 'products.price', 'products.sale_price')
+                    ->where('product_variants.id', $item['variant_id'])
+                    ->first();
+
+                if (!$variant) continue;
+
                 $updated = Inventory::where('variant_id', $item['variant_id'])
                     ->where('available_qty', '>=', $item['qty'])
                     ->update([
@@ -98,6 +106,8 @@ class InventoryController extends Controller
                         'variant_id' => $item['variant_id'],
                     ], 409);
                 }
+                
+                $item['verified_price'] = $variant->price_override ?? ($variant->sale_price ?? $variant->price);
                 $reserved[] = $item;
             }
             DB::commit();

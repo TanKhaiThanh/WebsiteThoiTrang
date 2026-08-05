@@ -43,6 +43,7 @@ import ReturnManagePage from './pages/admin/ReturnManagePage';
 import InventoryManagePage from './pages/admin/InventoryManagePage';
 import BannerManagePage from './pages/admin/BannerManagePage';
 import ReviewManagePage from './pages/admin/ReviewManagePage';
+import ShippingConfigPage from './pages/admin/ShippingConfigPage';
 
 const PublicLayout = () => (
     <div className="flex flex-col" style={{ minHeight: '100vh' }}>
@@ -106,6 +107,7 @@ function App() {
                                     <Route path="inventory" element={<InventoryManagePage />} />
                                     <Route path="banners" element={<BannerManagePage />} />
                                     <Route path="reviews" element={<ReviewManagePage />} />
+                                    <Route path="shipping" element={<ShippingConfigPage />} />
                                 </Route>
 
                                 {/* 3. Staff Routes */}

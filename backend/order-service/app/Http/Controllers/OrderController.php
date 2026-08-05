@@ -88,15 +88,47 @@ class OrderController extends Controller
             if (!$response->successful()) {
                 return response()->json(['error' => 'Một hoặc nhiều sản phẩm đã hết hàng hoặc không đủ số lượng trong kho.'], 400); 
             }
+            $reservedItems = $response->json('reserved');
         } catch (\Exception $e) {
             return response()->json(['error' => 'Lỗi kết nối Kho xuất hàng: ' . $e->getMessage()], 500); 
         }
 
-        $subtotal = collect($request->items)->sum(fn($i) => $i['price'] * $i['quantity']);
+        $subtotal = 0;
+        $orderItemsPayload = $request->items;
+        foreach ($orderItemsPayload as &$itm) {
+            if (isset($reservedItems)) {
+                $verified = collect($reservedItems)->firstWhere('variant_id', $itm['variant_id']);
+                if ($verified && isset($verified['verified_price'])) {
+                    $itm['price'] = $verified['verified_price']; // Áp đặt giá từ Hệ thống
+                }
+            }
+            $subtotal += $itm['price'] * $itm['quantity'];
+        }
         $voucherDiscount = $request->input('voucher_discount', 0);
         $shippingDiscount = $request->input('shipping_discount', 0);
         $pointsDiscount = $request->input('points_discount', 0);
-        $shippingFee = $request->input('shipping_fee', 30000);
+        
+        // Auto Calculate Shipping Fee via Settings
+        $settings = \App\Models\ShippingSetting::first();
+        $shippingFee = 30000;
+        
+        if ($settings) {
+            if ($subtotal >= $settings->free_shipping_threshold) {
+                $shippingFee = 0;
+            } else {
+                $address = mb_strtolower($request->shipping_address, 'UTF-8');
+                if (str_contains($address, 'hồ chí minh') || str_contains($address, 'hcm')) {
+                    $shippingFee = $settings->zone_1_fee;
+                } elseif (preg_match('/(bình dương|đồng nai|long an|tây ninh|bà rịa|vũng tàu)/', $address)) {
+                    $shippingFee = $settings->zone_2_fee;
+                } elseif (preg_match('/(cần thơ|đà nẵng|bình thuận|tiền giang|bến tre|đồng tháp|vĩnh long|trà vinh|hậu giang|kiên giang|sóc trăng|bạc liêu|cà mau|an giang|bình phước|lâm đồng|đắk lắk|đắk nông|gia lai|kon tum|khánh hòa|ninh thuận|phú yên)/', $address)) {
+                    $shippingFee = $settings->zone_3_fee;
+                } else {
+                    $shippingFee = $settings->zone_4_fee;
+                }
+            }
+        }
+        
         $total = max(0, $subtotal - $voucherDiscount - $pointsDiscount + $shippingFee - $shippingDiscount);
 
         $order = Order::create([
@@ -116,7 +148,7 @@ class OrderController extends Controller
             'note' => $request->note,
         ]);
 
-        foreach ($request->items as $item) {
+        foreach ($orderItemsPayload as $item) {
             $order->items()->create($item);
         }
 

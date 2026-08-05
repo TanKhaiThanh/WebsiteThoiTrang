@@ -4,6 +4,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/health', fn() => response()->json(['status' => 'ok', 'service' => 'order-service']));
 
+// Lấy cài đặt vận chuyển (Công khai để Frontend check phí)
+Route::get('/shipping/settings', [\App\Http\Controllers\ShippingSettingController::class, 'getSettings']);
+
 // Cart (supports both guest and authenticated user)
 Route::middleware(\App\Http\Middleware\OptionalJwtMiddleware::class)->group(function () {
     Route::get('/cart', [\App\Http\Controllers\CartController::class, 'index']);
@@ -38,6 +41,9 @@ Route::middleware(\App\Http\Middleware\JwtMiddleware::class)->group(function () 
     Route::middleware(\App\Http\Middleware\RoleMiddleware::class . ':admin')->group(function () {
         Route::post('/returns/{id}/approve', [\App\Http\Controllers\ReturnController::class, 'approve']);
         Route::post('/returns/{id}/reject', [\App\Http\Controllers\ReturnController::class, 'reject']);
+        
+        // Shipping Config
+        Route::put('/shipping/settings', [\App\Http\Controllers\ShippingSettingController::class, 'updateSettings']);
     });
 });
 

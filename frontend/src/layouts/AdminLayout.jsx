@@ -11,7 +11,8 @@ import {
     LogOut,
     Store,
     Image,
-    Star
+    Star,
+    Truck
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -25,6 +26,7 @@ const menuItems = [
     { name: 'Người Dùng', path: '/admin/users', icon: <Users size={20} /> },
     { name: 'Banners', path: '/admin/banners', icon: <Image size={20} /> },
     { name: 'Đánh Giá', path: '/admin/reviews', icon: <Star size={20} /> },
+    { name: 'Phí Vận Chuyển', path: '/admin/shipping', icon: <Truck size={20} /> },
 ];
 
 const AdminLayout = () => {

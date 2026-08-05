@@ -19,10 +19,20 @@ const CheckoutPage = () => {
     const [formData, setFormData] = useState({
         customer_name: user?.name || '',
         customer_phone: '',
-        shipping_address: '',
+        province: '', // Tỉnh/Thành
+        ward: '', // Phường/Xã mới
+        street: '', // Số nhà
         payment_method: 'cod',
         note: ''
     });
+
+    const [errors, setErrors] = useState({});
+
+    const [provinces, setProvinces] = useState([]);
+    const [shippingSettings, setShippingSettings] = useState(null);
+
+    // Nếu chưa chọn thì gán bằng 0
+    const [calculatedShippingFee, setCalculatedShippingFee] = useState(0);
 
     const [loading, setLoading] = useState(false);
 
@@ -33,20 +43,69 @@ const CheckoutPage = () => {
 
     const [autoFill, setAutoFill] = useState(false);
 
-    // Initial fetch points
+    // Initial fetch points, shipping settings, and provinces
     React.useEffect(() => {
         if (user) {
             api.get(`/points/${user.id}`).then(res => {
                 setUserPoints(res.data.points?.balance || 0);
             }).catch(console.error);
         }
+
+        // Fetch Shipping Settings
+        api.get('/shipping/settings').then(res => {
+            setShippingSettings(res.data);
+            setCalculatedShippingFee(0); // Mặc định về 0 để không hiển thị tiền vống
+        }).catch(console.error);
+
+        // Fetch Province from ESGOO
+        fetch('https://esgoo.net/api-tinhthanh/1/0.htm')
+            .then(res => res.json())
+            .then(data => {
+                if (data.error === 0) setProvinces(data.data);
+            })
+            .catch(console.error);
     }, [user]);
 
-    // Constants for demo
-    const shippingFee = 30000;
-    const finalTotal = Math.max(0, cartTotal + shippingFee - discount - pointsDiscount);
+    // Calculate real-time shipping fee
+    React.useEffect(() => {
+        if (!shippingSettings) return;
+        if (cartTotal >= (shippingSettings.free_shipping_threshold || 500000)) {
+            setCalculatedShippingFee(0);
+            return;
+        }
 
-    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+        const pName = formData.province.toLowerCase();
+        const wName = formData.ward.toLowerCase();
+
+        // Nếu chưa chọn Tỉnh thành thì trả về 0 để hiển thị "Theo khu vực"
+        if (pName.trim() === '') {
+            setCalculatedShippingFee(0);
+            return;
+        }
+
+        if (pName.includes('hồ chí minh') || pName.includes('hcm')) {
+            setCalculatedShippingFee(shippingSettings.zone_1_fee);
+        } else if (/(bình dương|đồng nai|long an|tây ninh|bà rịa)/i.test(pName)) {
+            setCalculatedShippingFee(shippingSettings.zone_2_fee);
+        } else if (/(cần thơ|đà nẵng|bình thuận|tiền giang|bến tre|đồng tháp|vĩnh long|trà vinh|kiên giang|sóc trăng|cà mau|an giang|tây nguyên|đắk lắk|khánh hòa|ninh thuận|phú yên)/i.test(pName)) {
+            setCalculatedShippingFee(shippingSettings.zone_3_fee);
+        } else {
+            setCalculatedShippingFee(shippingSettings.zone_4_fee);
+        }
+    }, [formData.province, formData.ward, cartTotal, shippingSettings]);
+
+    const finalTotal = Math.max(0, cartTotal + calculatedShippingFee - discount - pointsDiscount);
+
+    const handleChange = (e) => {
+        let { name, value } = e.target;
+        // Tự động viết hoa chữ cái đầu của mỗi từ trong Phường/Xã
+        if (name === 'ward') {
+            value = value.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        }
+        setFormData({ ...formData, [name]: value });
+        // Xoá lỗi khi người dùng bắt đầu nhập lại
+        if (errors[name]) setErrors({ ...errors, [name]: '' });
+    };
 
     const handleAutoFill = async (e) => {
         const checked = e.target.checked;
@@ -59,7 +118,8 @@ const CheckoutPage = () => {
                     ...prev,
                     customer_name: profile.name || prev.customer_name,
                     customer_phone: profile.phone || prev.customer_phone,
-                    shipping_address: profile.address || prev.shipping_address
+                    // Try parsing old unified string if they only have that in DB
+                    street: profile.address || prev.street
                 }));
                 toast.success('Đã điền thông tin tự động');
             } catch (error) {
@@ -103,11 +163,26 @@ const CheckoutPage = () => {
         e.preventDefault();
         if (!cart?.items?.length) return toast.error('Giỏ hàng trống');
 
+        // Validation thủ công
+        let newErrors = {};
+        if (!formData.customer_name.trim()) newErrors.customer_name = 'Vui lòng nhập Họ và tên';
+        if (!formData.customer_phone.trim()) newErrors.customer_phone = 'Vui lòng nhập Số điện thoại';
+        if (!formData.province) newErrors.province = 'Vui lòng chọn Tỉnh / Thành phố';
+        if (!formData.ward.trim()) newErrors.ward = 'Vui lòng nhập Phường / Xã';
+        if (!formData.street.trim()) newErrors.street = 'Vui lòng nhập Số nhà, Tên đường';
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            toast.error('Vui lòng điền đầy đủ các thông tin bắt buộc');
+            return;
+        }
+
         setLoading(true);
         try {
             // 1. Create order payload
             const orderData = {
                 ...formData,
+                shipping_address: `${formData.street}, ${formData.ward}, ${formData.province}`,
                 items: cart.items.map(item => {
                     let variantInfoStr = 'Mặc định';
                     if (item.product_details && item.variant_id) {
@@ -126,7 +201,7 @@ const CheckoutPage = () => {
                         price: item.price
                     };
                 }),
-                shipping_fee: shippingFee,
+                shipping_fee: calculatedShippingFee,
                 voucher_discount: discount,
                 points_discount: pointsDiscount,
                 coupon_code: discount > 0 ? couponCode : null,
@@ -134,6 +209,12 @@ const CheckoutPage = () => {
             };
 
             // 2. Submit order
+            if (formData.payment_method === 'bank_transfer') {
+                toast.error('Tính năng thanh toán qua ngân hàng đang được bảo trì nâng cấp. Vui lòng chọn Phương thức khác.');
+                setLoading(false);
+                return;
+            }
+
             const res = await api.post('/orders', orderData);
             const order = res.data.order;
 
@@ -171,7 +252,7 @@ const CheckoutPage = () => {
         <div className="container" style={{ padding: '4rem 0' }}>
             <h1 style={{ fontSize: '2.5rem', marginBottom: '3rem' }}>Thanh Toán</h1>
 
-            <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '3rem' }}>
+            <form onSubmit={handleSubmit} noValidate style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '3rem' }}>
 
                 {/* User Info Form */}
                 <div>
@@ -187,18 +268,39 @@ const CheckoutPage = () => {
                     )}
 
                     <div className="form-group">
-                        <label className="form-label">Họ và tên</label>
-                        <input type="text" name="customer_name" className="form-input" value={formData.customer_name} onChange={handleChange} required />
+                        <label className="form-label">Họ và tên <span style={{ color: 'red' }}>*</span></label>
+                        <input type="text" name="customer_name" className={`form-input ${errors.customer_name ? 'border-red-500' : ''}`} style={errors.customer_name ? { borderColor: '#ef4444' } : {}} value={formData.customer_name} onChange={handleChange} />
+                        {errors.customer_name && <div style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.25rem' }}>{errors.customer_name}</div>}
                     </div>
 
                     <div className="form-group">
-                        <label className="form-label">Số điện thoại</label>
-                        <input type="tel" name="customer_phone" className="form-input" value={formData.customer_phone} onChange={handleChange} required />
+                        <label className="form-label">Số điện thoại <span style={{ color: 'red' }}>*</span></label>
+                        <input type="tel" name="customer_phone" className={`form-input ${errors.customer_phone ? 'border-red-500' : ''}`} style={errors.customer_phone ? { borderColor: '#ef4444' } : {}} value={formData.customer_phone} onChange={handleChange} />
+                        {errors.customer_phone && <div style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.25rem' }}>{errors.customer_phone}</div>}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label className="form-label">Tỉnh / Thành Phố <span style={{ color: 'red' }}>*</span></label>
+                            <select name="province" className={`form-input ${errors.province ? 'border-red-500' : ''}`} style={errors.province ? { borderColor: '#ef4444' } : {}} value={formData.province} onChange={handleChange}>
+                                <option value="">Chọn Tỉnh/Thành phố...</option>
+                                {provinces.map(p => (
+                                    <option key={p.id} value={p.name}>{p.name}</option>
+                                ))}
+                            </select>
+                            {errors.province && <div style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.25rem' }}>{errors.province}</div>}
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label className="form-label">Phường / Xã <span style={{ color: 'red' }}>*</span></label>
+                            <input type="text" name="ward" className={`form-input ${errors.ward ? 'border-red-500' : ''}`} style={errors.ward ? { borderColor: '#ef4444' } : {}} placeholder="Ví dụ: Phường Bến Thành" value={formData.ward} onChange={handleChange} />
+                            {errors.ward && <div style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.25rem' }}>{errors.ward}</div>}
+                        </div>
                     </div>
 
                     <div className="form-group">
-                        <label className="form-label">Địa chỉ nhận hàng chi tiết</label>
-                        <textarea name="shipping_address" className="form-input" rows="3" value={formData.shipping_address} onChange={handleChange} required></textarea>
+                        <label className="form-label">Số nhà, Tên đường <span style={{ color: 'red' }}>*</span></label>
+                        <textarea name="street" className={`form-input ${errors.street ? 'border-red-500' : ''}`} style={errors.street ? { borderColor: '#ef4444' } : {}} rows="2" placeholder="Ví dụ: 141 Nguyễn Du" value={formData.street} onChange={handleChange}></textarea>
+                        {errors.street && <div style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.25rem' }}>{errors.street}</div>}
                     </div>
 
                     <div className="form-group">
@@ -212,6 +314,13 @@ const CheckoutPage = () => {
                         <label style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.5rem', border: '1px solid var(--color-border)', borderRadius: '4px', cursor: 'pointer' }}>
                             <input type="radio" name="payment_method" value="cod" checked={formData.payment_method === 'cod'} onChange={handleChange} />
                             <span style={{ fontWeight: 500 }}>Thanh toán khi nhận hàng (COD)</span>
+                        </label>
+
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.5rem', border: '1px solid var(--color-border)', borderRadius: '4px', cursor: 'pointer' }}>
+                            <input type="radio" name="payment_method" value="bank_transfer" checked={formData.payment_method === 'bank_transfer'} onChange={handleChange} />
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontWeight: 500, color: 'var(--color-text)' }}>Chuyển khoản qua ngân hàng</span>
+                            </div>
                         </label>
 
                         <label style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.5rem', border: '1px solid var(--color-border)', borderRadius: '4px', cursor: 'pointer' }}>
@@ -242,7 +351,14 @@ const CheckoutPage = () => {
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--color-border)' }}>
                             <span style={{ color: 'var(--color-text-muted)' }}>Vận chuyển (tiêu chuẩn):</span>
-                            <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(shippingFee)}</span>
+                            <span>
+                                {cartTotal >= (shippingSettings?.free_shipping_threshold || 500000)
+                                    ? 'Miễn phí'
+                                    : (formData.province.trim() === ''
+                                        ? <i>Dựa theo khu vực</i>
+                                        : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(calculatedShippingFee))
+                                }
+                            </span>
                         </div>
 
                         {/* Coupon Form */}

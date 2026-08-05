@@ -341,16 +341,24 @@ const ProductFormModal = ({ onClose, onSuccess, initialData, categories }) => {
                                             <th style={{ padding: '0.75rem' }}>Màu sắc</th>
                                             <th style={{ padding: '0.75rem' }}>Kích cỡ</th>
                                             <th style={{ padding: '0.75rem' }}>Mã SKU</th>
+                                            <th style={{ padding: '0.75rem' }}>Giá Riêng (Tuỳ chọn)</th>
                                             <th style={{ padding: '0.75rem', textAlign: 'right' }}>Xóa</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {formData.variants.map((variant, index) => (
                                             <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                                <td style={{ padding: '0.75rem' }}>{variant.color}</td>
-                                                <td style={{ padding: '0.75rem' }}>{variant.size}</td>
+                                                <td style={{ padding: '0.75rem' }}>
+                                                    <input type="text" value={variant.color || ''} onChange={(e) => handleVariantChange(index, 'color', e.target.value)} style={{ width: '100px', padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px' }} placeholder="Màu..." />
+                                                </td>
+                                                <td style={{ padding: '0.75rem' }}>
+                                                    <input type="text" value={variant.size || ''} onChange={(e) => handleVariantChange(index, 'size', e.target.value)} style={{ width: '80px', padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px' }} placeholder="Size..." />
+                                                </td>
                                                 <td style={{ padding: '0.75rem' }}>
                                                     <input required type="text" value={variant.sku} onChange={(e) => handleVariantChange(index, 'sku', e.target.value)} style={{ width: '100%', padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                                </td>
+                                                <td style={{ padding: '0.75rem' }}>
+                                                    <input type="number" min="0" placeholder="Bỏ trống = Giá gốc" value={variant.price_override || ''} onChange={(e) => handleVariantChange(index, 'price_override', e.target.value)} style={{ width: '140px', padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px' }} />
                                                 </td>
                                                 <td style={{ padding: '0.75rem', textAlign: 'right' }}>
                                                     <button type="button" onClick={() => {
@@ -361,6 +369,11 @@ const ProductFormModal = ({ onClose, onSuccess, initialData, categories }) => {
                                         ))}
                                     </tbody>
                                 </table>
+                                <button type="button" onClick={() => {
+                                    setFormData(prev => ({ ...prev, variants: [...prev.variants, { color: '', size: '', sku: `SKU-${Date.now().toString().slice(-6)}`, price_override: '', qty: 0 }] }));
+                                }} style={{ marginTop: '1rem', padding: '0.5rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#f1f5f9', color: '#475569', border: '1px dashed #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
+                                    <Plus size={16} /> Thêm 1 biến thể thủ công
+                                </button>
                             </div>
                         )}
 
@@ -807,8 +820,12 @@ const ProductManagePage = () => {
                 <ProductFormModal
                     categories={categories}
                     initialData={editingProduct}
-                    onClose={() => setShowProductModal(false)}
-                    onSuccess={() => { setShowProductModal(false); fetchProducts(); }}
+                    onClose={() => { setShowProductModal(false); setEditingProduct(null); }}
+                    onSuccess={() => {
+                        setShowProductModal(false);
+                        setEditingProduct(null);
+                        setTimeout(() => fetchProducts(), 50);
+                    }}
                 />
             )}
         </div>
