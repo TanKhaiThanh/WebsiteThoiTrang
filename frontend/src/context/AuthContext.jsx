@@ -36,31 +36,39 @@ export const AuthProvider = ({ children }) => {
 
             return { success: true };
         } catch (error) {
-            return { success: false, error: error.response?.data?.error || 'Login failed' };
+            return {
+                success: false,
+                error: error.response?.data?.error || 'Đăng nhập thất bại',
+                requires_verification: error.response?.data?.requires_verification
+            };
         }
     };
 
     const register = async (userData) => {
         try {
             const response = await api.post('/auth/register', userData);
-            const { user, token } = response.data;
 
-            // Merge guest cart if exists, do in BACKGROUND!
-            const sessionId = localStorage.getItem('asmaw_session_id');
-            if (sessionId) {
-                localStorage.setItem('asmaw_token', token);
-                api.post('/cart/merge', { session_id: sessionId }, { headers: { Authorization: `Bearer ${token}` } })
-                    .catch(e => console.error('Lỗi ngầm khi merge giỏ lúc đăng ký:', e));
-            } else {
-                localStorage.setItem('asmaw_token', token);
+            if (response.data.requires_verification) {
+                return { success: true, requires_verification: true, email: userData.email };
             }
 
-            localStorage.setItem('asmaw_user', JSON.stringify(user));
-            setUser(user);
-
+            // (Phòng hờ nếu API trả token)
+            const { user, token } = response.data;
+            if (token) {
+                const sessionId = localStorage.getItem('asmaw_session_id');
+                if (sessionId) {
+                    localStorage.setItem('asmaw_token', token);
+                    api.post('/cart/merge', { session_id: sessionId }, { headers: { Authorization: `Bearer ${token}` } })
+                        .catch(e => console.error('Lỗi ngầm khi merge:', e));
+                } else {
+                    localStorage.setItem('asmaw_token', token);
+                }
+                localStorage.setItem('asmaw_user', JSON.stringify(user));
+                setUser(user);
+            }
             return { success: true };
         } catch (error) {
-            return { success: false, errors: error.response?.data?.errors };
+            return { success: false, error: error.response?.data?.error || 'Đăng ký thất bại.', errors: error.response?.data?.errors };
         }
     };
 

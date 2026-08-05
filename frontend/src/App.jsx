@@ -19,6 +19,7 @@ import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import VerifyOtpPage from './pages/VerifyOtpPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import PaymentCallbackPage from './pages/PaymentCallbackPage';
 import CheckoutPage from './pages/CheckoutPage';
@@ -54,78 +55,86 @@ const PublicLayout = () => (
     </div>
 );
 
+import { GoogleOAuthProvider } from '@react-oauth/google';
+
+// ... (other providers)
 function App() {
+    const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '123456789-mockedclientid.apps.googleusercontent.com';
+
     return (
-        <AuthProvider>
-            <WishlistProvider>
-                <CartProvider>
-                    <Router>
-                        <ScrollToTop />
-                        <Routes>
-                            {/* 1. Public Routes with Header & Footer */}
-                            <Route element={<PublicLayout />}>
-                                <Route path="/" element={<HomePage />} />
-                                <Route path="/news" element={<NewsPage />} />
-                                <Route path="/products" element={<ProductListPage />} />
-                                <Route path="/products/:id" element={<ProductDetailPage />} />
-                                <Route path="/cart" element={<CartPage />} />
-                                <Route path="/wishlist" element={<WishlistPage />} />
-                                <Route path="/checkout" element={<CheckoutPage />} />
-                                <Route path="/login" element={<LoginPage />} />
-                                <Route path="/register" element={<RegisterPage />} />
-                                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                                <Route path="/payment/callback" element={<PaymentCallbackPage />} />
-                                <Route path="/profile" element={
-                                    <ProtectedRoute>
-                                        <ProfilePage />
+        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+            <AuthProvider>
+                <WishlistProvider>
+                    <CartProvider>
+                        <Router>
+                            <ScrollToTop />
+                            <Routes>
+                                {/* 1. Public Routes with Header & Footer */}
+                                <Route element={<PublicLayout />}>
+                                    <Route path="/" element={<HomePage />} />
+                                    <Route path="/news" element={<NewsPage />} />
+                                    <Route path="/products" element={<ProductListPage />} />
+                                    <Route path="/products/:id" element={<ProductDetailPage />} />
+                                    <Route path="/cart" element={<CartPage />} />
+                                    <Route path="/wishlist" element={<WishlistPage />} />
+                                    <Route path="/checkout" element={<CheckoutPage />} />
+                                    <Route path="/login" element={<LoginPage />} />
+                                    <Route path="/register" element={<RegisterPage />} />
+                                    <Route path="/verify-otp" element={<VerifyOtpPage />} />
+                                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                                    <Route path="/payment/callback" element={<PaymentCallbackPage />} />
+                                    <Route path="/profile" element={
+                                        <ProtectedRoute>
+                                            <ProfilePage />
+                                        </ProtectedRoute>
+                                    } />
+                                    <Route path="/403" element={<ForbiddenPage />} />
+                                </Route>
+
+
+                                <Route path="/admin" element={
+                                    <ProtectedRoute roles={['admin']}>
+                                        <AdminLayout />
                                     </ProtectedRoute>
-                                } />
-                                <Route path="/403" element={<ForbiddenPage />} />
-                            </Route>
+                                }>
+                                    <Route index element={<DashboardPage />} />
+                                    <Route path="products" element={<ProductManagePage />} />
+                                    <Route path="orders" element={<OrderManagePage />} />
+                                    <Route path="users" element={<UserManagePage />} />
+                                    <Route path="coupons" element={<CouponManagePage />} />
+                                    <Route path="returns" element={<ReturnManagePage />} />
+                                    <Route path="inventory" element={<InventoryManagePage />} />
+                                    <Route path="banners" element={<BannerManagePage />} />
+                                    <Route path="reviews" element={<ReviewManagePage />} />
+                                </Route>
 
-                            {/* 2. Admin Routes */}
-                            <Route path="/admin" element={
-                                <ProtectedRoute roles={['admin']}>
-                                    <AdminLayout />
-                                </ProtectedRoute>
-                            }>
-                                <Route index element={<DashboardPage />} />
-                                <Route path="products" element={<ProductManagePage />} />
-                                <Route path="orders" element={<OrderManagePage />} />
-                                <Route path="users" element={<UserManagePage />} />
-                                <Route path="coupons" element={<CouponManagePage />} />
-                                <Route path="returns" element={<ReturnManagePage />} />
-                                <Route path="inventory" element={<InventoryManagePage />} />
-                                <Route path="banners" element={<BannerManagePage />} />
-                                <Route path="reviews" element={<ReviewManagePage />} />
-                            </Route>
+                                {/* 3. Staff Routes */}
+                                <Route path="/staff" element={
+                                    <ProtectedRoute roles={['staff']}>
+                                        <StaffLayout />
+                                    </ProtectedRoute>
+                                }>
+                                    <Route index element={<DashboardPage />} />
+                                    <Route path="products" element={<ProductManagePage />} />
+                                    <Route path="orders" element={<OrderManagePage />} />
+                                    <Route path="inventory" element={<InventoryManagePage />} />
+                                </Route>
 
-                            {/* 3. Staff Routes */}
-                            <Route path="/staff" element={
-                                <ProtectedRoute roles={['staff']}>
-                                    <StaffLayout />
-                                </ProtectedRoute>
-                            }>
-                                <Route index element={<DashboardPage />} />
-                                <Route path="products" element={<ProductManagePage />} />
-                                <Route path="orders" element={<OrderManagePage />} />
-                                <Route path="inventory" element={<InventoryManagePage />} />
-                            </Route>
-
-                            {/* 4. Shipper Routes */}
-                            <Route path="/shipper" element={
-                                <ProtectedRoute roles={['shipper']}>
-                                    <ShipperLayout />
-                                </ProtectedRoute>
-                            }>
-                                <Route index element={<OrderManagePage />} />
-                            </Route>
-                            {/* Add a catch-all 404 route if needed */}
-                        </Routes>
-                    </Router>
-                </CartProvider>
-            </WishlistProvider>
-        </AuthProvider>
+                                {/* 4. Shipper Routes */}
+                                <Route path="/shipper" element={
+                                    <ProtectedRoute roles={['shipper']}>
+                                        <ShipperLayout />
+                                    </ProtectedRoute>
+                                }>
+                                    <Route index element={<OrderManagePage />} />
+                                </Route>
+                                {/* Add a catch-all 404 route if needed */}
+                            </Routes>
+                        </Router>
+                    </CartProvider>
+                </WishlistProvider>
+            </AuthProvider>
+        </GoogleOAuthProvider>
     );
 }
 

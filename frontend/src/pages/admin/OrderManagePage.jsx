@@ -79,20 +79,27 @@ const OrderManagePage = () => {
         fetchOrders();
     }, [page, statusFilter]);
 
-    const handleStatusChange = async (orderId, newStatus) => {
-        setIsUpdating(true);
-        try {
-            await api.put(`/orders/${orderId}/status`, { status: newStatus });
-            toast.success('Cập nhật trạng thái thành công');
-            setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-            if (selectedOrder && selectedOrder.id === orderId) {
-                setSelectedOrder({ ...selectedOrder, status: newStatus });
-            }
-        } catch (error) {
-            toast.error(error.response?.data?.error || 'Lỗi khi cập nhật trạng thái');
-        } finally {
-            setIsUpdating(false);
+    const handleStatusChange = (orderId, newStatus) => {
+        // Lưu state cũ để phục hồi nếu gọi API lỗi (Optimistic Fallback)
+        const originalOrders = [...orders];
+        const originalSelected = selectedOrder ? { ...selectedOrder } : null;
+
+        // Cập nhật phản hồi UI ngay lập tức
+        setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+        if (selectedOrder && selectedOrder.id === orderId) {
+            setSelectedOrder({ ...selectedOrder, status: newStatus });
         }
+
+        // Gọi API ngầm không block luồng Render
+        api.put(`/orders/${orderId}/status`, { status: newStatus })
+            .then(() => {
+                toast.success('Cập nhật trạng thái thành công');
+            })
+            .catch(error => {
+                toast.error(error.response?.data?.error || 'Lỗi đường truyền, đang trích xuất lại trạng thái gốc...');
+                setOrders(originalOrders); // Rollback UI
+                setSelectedOrder(originalSelected);
+            });
     };
 
     return (

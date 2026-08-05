@@ -70,6 +70,7 @@ services:
       - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:${GATEWAY_PORT:-8000}/api
+      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
     networks:
       - asmaw-network
     depends_on:
@@ -101,6 +102,7 @@ services:
       - PRODUCT_SERVICE_URL=http://product-service:8002
       - ORDER_SERVICE_URL=http://order-service:8003
       - PROMOTION_SERVICE_URL=http://promotion-service:8004
+      - SALE_SERVICE_URL=http://sale-service:8005
     networks:
       - asmaw-network
     depends_on:
@@ -135,6 +137,16 @@ services:
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PORT=${REDIS_PORT}
       - JWT_SECRET=${JWT_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - MAIL_MAILER=${MAIL_MAILER}
+      - MAIL_HOST=${MAIL_HOST}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_ENCRYPTION=${MAIL_ENCRYPTION}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME}
     networks:
       - asmaw-network
     depends_on:

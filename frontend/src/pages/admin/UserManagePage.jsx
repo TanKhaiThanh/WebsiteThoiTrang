@@ -3,6 +3,7 @@ import { Search, Filter, ShieldAlert, ShieldCheck, MoreVertical, Edit, UserX, Us
 import api from '../../services/api';
 import { toast } from 'sonner';
 import Pagination from '../../components/Pagination';
+import ConfirmModal from '../../components/ConfirmModal';
 
 const UserManagePage = () => {
     const [users, setUsers] = useState([]);
@@ -12,6 +13,7 @@ const UserManagePage = () => {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [updatingId, setUpdatingId] = useState(null);
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, action: null, title: '', message: '' });
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -43,8 +45,9 @@ const UserManagePage = () => {
     };
 
     const handleRoleChange = async (userId, newRole) => {
-        if (!window.confirm(`Bạn có chắc chắn thay đổi chức vụ thành ${newRole.toUpperCase()} cho user này?`)) return;
-
+        setConfirmConfig({
+            isOpen: false, action: null, title: '', message: ''
+        });
         setUpdatingId(userId);
         try {
             await api.put(`/users/${userId}/role`, { role: newRole });
@@ -58,19 +61,39 @@ const UserManagePage = () => {
     };
 
     const handleToggleBan = async (userId, isBanned) => {
-        const action = isBanned ? 'MỞ KHÓA' : 'KHÓA';
-        if (!window.confirm(`Bạn có chắc muốn ${action} tài khoản này?`)) return;
-
+        setConfirmConfig({
+            isOpen: false, action: null, title: '', message: ''
+        });
+        const actionStr = isBanned ? 'MỞ KHÓA' : 'KHÓA';
         setUpdatingId(userId);
         try {
             await api.put(`/users/${userId}/ban`);
-            toast.success(`${action} tài khoản thành công`);
+            toast.success(`${actionStr} tài khoản thành công`);
             setUsers(users.map(u => u.id === userId ? { ...u, is_banned: !isBanned } : u));
         } catch (error) {
-            toast.error(error.response?.data?.error || `Lỗi khi ${action} tài khoản`);
+            toast.error(error.response?.data?.error || `Lỗi khi ${actionStr} tài khoản`);
         } finally {
             setUpdatingId(null);
         }
+    };
+
+    const requestRoleChange = (userId, newRole) => {
+        setConfirmConfig({
+            isOpen: true,
+            title: 'Khẳng định thay đổi',
+            message: `Bạn có chắc chắn thay đổi chức vụ thành ${newRole.toUpperCase()} cho user này?`,
+            action: () => handleRoleChange(userId, newRole)
+        });
+    };
+
+    const requestToggleBan = (userId, isBanned) => {
+        const actionStr = isBanned ? 'mở khóa' : 'khóa';
+        setConfirmConfig({
+            isOpen: true,
+            title: 'Khẳng định tài khoản',
+            message: `Bạn có chắc muốn ${actionStr} tài khoản này?`,
+            action: () => handleToggleBan(userId, isBanned)
+        });
     };
 
     const ROLE_LABELS = {
@@ -166,7 +189,7 @@ const UserManagePage = () => {
                                     <td style={{ padding: '1rem' }}>
                                         <select
                                             value={user.role}
-                                            onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                                            onChange={(e) => requestRoleChange(user.id, e.target.value)}
                                             disabled={updatingId === user.id}
                                             style={{
                                                 padding: '0.25rem 0.5rem',
@@ -198,9 +221,9 @@ const UserManagePage = () => {
                                     </td>
                                     <td style={{ padding: '1rem', textAlign: 'right' }}>
                                         <button
-                                            onClick={() => handleToggleBan(user.id, user.is_banned)}
-                                            disabled={updatingId === user.id || user.role === 'admin'}
-                                            title={user.role === 'admin' ? "Không thể khóa Admin" : (user.is_banned ? 'Mở Khóa Tài Khoản' : 'Khóa Tài Khoản')}
+                                            onClick={() => requestToggleBan(user.id, user.is_banned)}
+                                            className="btn btn-icon"
+                                            title={user.is_banned ? "Mở khóa tài khoản" : "Khóa tài khoản"}
                                             style={{
                                                 background: 'none', border: 'none', cursor: user.role === 'admin' ? 'not-allowed' : 'pointer',
                                                 color: user.is_banned ? 'var(--color-primary)' : 'var(--color-error)',
@@ -216,7 +239,19 @@ const UserManagePage = () => {
                     </tbody>
                 </table>
 
-                <Pagination page={page} totalPages={totalPages} setPage={setPage} />
+                {totalPages > 1 && (
+                    <div style={{ padding: '1.5rem', display: 'flex', justifyContent: 'center' }}>
+                        <Pagination page={page} totalPages={totalPages} setPage={setPage} />
+                    </div>
+                )}
+
+                <ConfirmModal
+                    isOpen={confirmConfig.isOpen}
+                    title={confirmConfig.title}
+                    message={confirmConfig.message}
+                    onConfirm={confirmConfig.action}
+                    onCancel={() => setConfirmConfig({ isOpen: false, action: null, title: '', message: '' })}
+                />
             </div>
         </div>
     );

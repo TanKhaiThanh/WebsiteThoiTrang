@@ -6,7 +6,10 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
 use Firebase\JWT\JWT;
+use Illuminate\Support\Facades\Http;
 
 class AuthController extends Controller
 {
@@ -26,21 +29,108 @@ class AuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => $request->password, // auto-hashed via cast
-            'phone' => $request->phone,
-            'role' => 'customer',
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+                $user = User::create([
+                    'name' => $request->name,
+                    'email' => $request->email,
+                    'password' => $request->password, // auto-hashed via cast
+                    'phone' => $request->phone,
+                    'role' => 'customer',
+                ]);
+
+                $this->sendOtpEmail($request->email);
+            });
+
+            return response()->json([
+                'message' => 'Đăng ký tài khoản thành công. Vui lòng xác thực Email.',
+                'requires_verification' => true,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Đăng ký thất bại. Lỗi hệ thống: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Helper to send OTP Emails
+     */
+    private function sendOtpEmail($email) 
+    {
+        $otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+        Cache::put('otp_verification_' . $email, $otp, now()->addMinutes(10));
+        
+        Mail::raw("Mã xác thực tài khoản ASMAW của bạn là: $otp. Mã này có hiệu lực 10 phút.", function($msg) use ($email) {
+            $msg->to($email)->subject('Xác thực tài khoản ASMAW');
+        });
+    }
+
+    /**
+     * Verify OTP
+     */
+    public function verifyOtp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'otp'   => 'required|string|size:6'
         ]);
 
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $cachedOtp = Cache::get('otp_verification_' . $request->email);
+
+        if (!$cachedOtp || $cachedOtp !== $request->otp) {
+            return response()->json(['error' => 'Mã OTP không hợp lệ hoặc đã hết hạn.'], 400);
+        }
+
+        $user = User::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json(['error' => 'Tài khoản không tồn tại.'], 404);
+        }
+
+        $user->email_verified_at = now();
+        $user->save();
+        
+        Cache::forget('otp_verification_' . $request->email);
+
         $token = $this->generateToken($user);
+        return response()->json([
+            'message' => 'Xác thực tài khoản thành công.',
+            'user' => $this->formatUser($user),
+            'token' => $token
+        ], 200);
+    }
+
+    /**
+     * Resend OTP
+     */
+    public function resendOtp(Request $request)
+    {
+         $validator = Validator::make($request->all(), [
+            'email' => 'required|email'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $user = User::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json(['error' => 'Tài khoản không tồn tại.'], 404);
+        }
+
+        if ($user->email_verified_at) {
+            return response()->json(['error' => 'Tài khoản này đã được xác thực.'], 400);
+        }
+
+        $this->sendOtpEmail($request->email);
 
         return response()->json([
-            'message' => 'Đăng ký tài khoản thành công.',
-            'user' => $this->formatUser($user),
-            'token' => $token,
-        ], 201);
+            'message' => 'Mã OTP mới đã được gửi đến email của bạn.'
+        ], 200);
     }
 
     /**
@@ -132,6 +222,14 @@ class AuthController extends Controller
             return response()->json(['error' => 'Tài khoản của bạn đã bị khóa.'], 403);
         }
 
+        if (is_null($user->email_verified_at)) {
+            $this->sendOtpEmail($request->email);
+            return response()->json([
+                'error' => 'Tài khoản chưa được xác thực Email. Một mã OTP mới đã được gửi.',
+                'requires_verification' => true
+            ], 403);
+        }
+
         $token = $this->generateToken($user);
 
         return response()->json([
@@ -191,6 +289,72 @@ class AuthController extends Controller
             'message' => 'Cập nhật hồ sơ thành công.',
             'user' => $this->formatUser($user),
         ]);
+    }
+
+    /**
+     * Google Login / Register
+     */
+    public function googleLogin(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'token' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            $response = Http::get('https://oauth2.googleapis.com/tokeninfo?id_token=' . $request->token);
+            
+            if (!$response->successful()) {
+                return response()->json(['error' => 'Google Token không hợp lệ hoặc không có quyền truy cập.'], 401);
+            }
+            
+            $payload = $response->json();
+
+            if (!isset($payload['email'])) {
+                return response()->json(['error' => 'Google Token không chứa thông tin Email hợp lệ.'], 401);
+            }
+
+            $email = $payload['email'];
+            $name = $payload['name'] ?? 'Google User';
+            $google_id = $payload['sub'];
+            $avatar = $payload['picture'] ?? null;
+
+            $user = User::where('email', $email)->first();
+
+            if ($user) {
+                // Trường hợp 2 & 3: Tồn tại email
+                if (empty($user->google_id)) {
+                    $user->google_id = $google_id;
+                    if (empty($user->avatar)) {
+                        $user->avatar = $avatar;
+                    }
+                    $user->save();
+                }
+            } else {
+                // Trường hợp 1: Chưa có tài khoản
+                $user = User::create([
+                    'name' => $name,
+                    'email' => $email,
+                    'password' => \Illuminate\Support\Str::random(60), // Random ko thể đoán
+                    'google_id' => $google_id,
+                    'role' => 'customer',
+                    'avatar' => $avatar
+                ]);
+            }
+
+            $token = $this->generateToken($user);
+
+            return response()->json([
+                'message' => 'Đăng nhập Google thành công.',
+                'user' => $this->formatUser($user),
+                'token' => $token,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Lỗi xác thực Google: ' . $e->getMessage()], 500);
+        }
     }
 
     /**

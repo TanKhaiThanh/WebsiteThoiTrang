@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, getDefaultRoute } from '../context/AuthContext';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { GoogleLogin } from '@react-oauth/google';
+import api from '../services/api';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -23,7 +25,12 @@ const LoginPage = () => {
             const redirectPath = getDefaultRoute(storedUser?.role);
             navigate(redirectPath);
         } else {
-            toast.error(result.error || 'Sai email hoặc mật khẩu.');
+            if (result.requires_verification) {
+                toast.error('Tài khoản chưa xác thực. Hệ thống đã gửi lại mã OTP.');
+                navigate('/verify-otp', { state: { email } });
+            } else {
+                toast.error(result.error || 'Sai email hoặc mật khẩu.');
+            }
         }
 
         setLoading(false);
@@ -81,6 +88,30 @@ const LoginPage = () => {
                         {loading ? 'Đang xử lý...' : 'ĐĂNG NHẬP'}
                     </button>
                 </form>
+                <div style={{ margin: '1.5rem 0', display: 'flex', alignItems: 'center', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                    <hr style={{ flex: 1, border: 'none', borderTop: '1px solid #e5e5e5' }} />
+                    <span style={{ padding: '0 10px', fontSize: '0.85rem' }}>Hoặc đăng nhập bằng</span>
+                    <hr style={{ flex: 1, border: 'none', borderTop: '1px solid #e5e5e5' }} />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <GoogleLogin
+                        onSuccess={async (credentialResponse) => {
+                            try {
+                                const res = await api.post('/auth/google', { token: credentialResponse.credential });
+                                localStorage.setItem('asmaw_token', res.data.token);
+                                localStorage.setItem('asmaw_user', JSON.stringify(res.data.user));
+                                toast.success('Đăng nhập Google thành công!');
+                                setTimeout(() => window.location.href = getDefaultRoute(res.data.user.role), 100);
+                            } catch (e) {
+                                toast.error(e.response?.data?.error || 'Đăng nhập Google thất bại');
+                            }
+                        }}
+                        onError={() => {
+                            toast.error('Đăng nhập Google thất bại');
+                        }}
+                    />
+                </div>
 
                 <div style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>
                     Chưa có tài khoản? <Link to="/register" style={{ color: 'var(--color-accent)', fontWeight: 500 }}>Đăng ký ngay</Link>

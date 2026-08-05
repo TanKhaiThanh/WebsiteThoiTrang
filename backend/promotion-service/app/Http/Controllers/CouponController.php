@@ -61,16 +61,16 @@ class CouponController extends Controller
 
         $coupon = Coupon::where('code', $request->code)->first();
 
-        if (!$coupon) return response()->json(['error' => 'Coupon not found'], 404);
-        if (!$coupon->isValid()) return response()->json(['error' => 'Coupon is expired or inactive'], 422);
+        if (!$coupon) return response()->json(['error' => 'Mã giảm giá không tồn tại'], 404);
+        if (!$coupon->isValid()) return response()->json(['error' => 'Mã giảm giá đã hết hạn hoặc không hoạt động'], 422);
         if ($request->order_total < $coupon->min_order_amount) {
-            return response()->json(['error' => "Minimum order: {$coupon->min_order_amount} VND"], 422);
+            return response()->json(['error' => "Đơn hàng tối thiểu: " . number_format($coupon->min_order_amount, 0, ',', '.') . " đ"], 422);
         }
 
         // Check if user already used this coupon
         $userId = $request->input('auth_user_id');
         if ($userId && CouponUsage::where('coupon_id', $coupon->id)->where('user_id', $userId)->exists()) {
-            return response()->json(['error' => 'You have already used this coupon'], 422);
+            return response()->json(['error' => 'Bạn đã sử dụng mã giảm giá này rồi'], 422);
         }
 
         // Calculate discount

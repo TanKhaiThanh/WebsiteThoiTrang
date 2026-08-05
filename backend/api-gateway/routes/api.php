@@ -27,6 +27,6 @@ Route::any('/payments/{path?}', [\App\Http\Controllers\GatewayController::class,
 Route::any('/shipping/{path?}', [\App\Http\Controllers\GatewayController::class, 'proxyToOrder'])->where('path', '.*');
 Route::any('/returns/{path?}', [\App\Http\Controllers\GatewayController::class, 'proxyToOrder'])->where('path', '.*');
 
-// Coupons & Points → promotion-service
+// Coupons & Points
 Route::any('/coupons/{path?}', [\App\Http\Controllers\GatewayController::class, 'proxyToPromotion'])->where('path', '.*');
 Route::any('/points/{path?}', [\App\Http\Controllers\GatewayController::class, 'proxyToPromotion'])->where('path', '.*');

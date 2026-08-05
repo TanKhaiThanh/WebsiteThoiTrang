@@ -1,13 +1,17 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 
 // Health check
 Route::get('/health', fn() => response()->json(['status' => 'ok', 'service' => 'user-service']));
 
 // Auth (Public)
-Route::post('/auth/register', [\App\Http\Controllers\AuthController::class, 'register']);
-Route::post('/auth/login', [\App\Http\Controllers\AuthController::class, 'login']);
+Route::post('/auth/register', [AuthController::class, 'register']);
+Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/google', [AuthController::class, 'googleLogin']);
+Route::post('/auth/verify-otp', [AuthController::class, 'verifyOtp']);
+Route::post('/auth/resend-otp', [AuthController::class, 'resendOtp']);
 Route::post('/auth/forgot-password', [\App\Http\Controllers\AuthController::class, 'forgotPassword']);
 Route::post('/auth/reset-password', [\App\Http\Controllers\AuthController::class, 'resetPassword']);
 

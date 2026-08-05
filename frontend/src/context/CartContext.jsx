@@ -122,9 +122,6 @@ export const CartProvider = ({ children }) => {
             // Chạy ngầm API
             const headers = !user ? { 'X-Session-ID': getSessionId() } : {};
             api.put(`/cart/items/${itemId}`, { quantity }, { headers })
-                .then(async (res) => {
-                    setCart(await rehydrateCart(res.data.cart));
-                })
                 .catch(e => {
                     console.error('Update quantity failed', e);
                     setCart(originalCart); // Rollback
@@ -147,9 +144,6 @@ export const CartProvider = ({ children }) => {
             // Chạy ngầm lệnh xóa ở Database
             const headers = !user ? { 'X-Session-ID': getSessionId() } : {};
             api.delete(`/cart/items/${itemId}`, { headers })
-                .then(async (res) => {
-                    setCart(await rehydrateCart(res.data.cart));
-                })
                 .catch(e => {
                     console.error('Remove item failed', e);
                     setCart(originalCart); // Rollback

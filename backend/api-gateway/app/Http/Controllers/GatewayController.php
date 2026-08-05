@@ -39,6 +39,7 @@ class GatewayController extends Controller
         return $this->proxy($request, env('PROMOTION_SERVICE_URL', 'http://promotion-service:8004'), $path);
     }
 
+
     /**
      * Core proxy logic — forward request to target service
      */
