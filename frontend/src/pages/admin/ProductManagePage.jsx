@@ -13,7 +13,8 @@ const formatCurrency = (amount) => {
 const getFinalImageUrl = (url) => {
     if (!url) return '';
     let parsedUrl = url.replace('/storage/uploads/products/', '/api/media/image/');
-    return parsedUrl.startsWith('http') ? parsedUrl : `http://localhost:8000${parsedUrl}`;
+    const baseUrl = import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '');
+    return parsedUrl.startsWith('http') ? parsedUrl : `${baseUrl}${parsedUrl}`;
 };
 
 // ==============================================
