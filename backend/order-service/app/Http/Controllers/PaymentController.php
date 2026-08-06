@@ -20,7 +20,7 @@ class PaymentController extends Controller
         $vnp_TmnCode = 'JNRTV9RY';
         $vnp_HashSecret = 'EMKCOWQQYEGXMESTDPEWLTBFNLYIQBSQ';
         $vnp_Url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
-        $vnp_ReturnUrl = "http://localhost:3000/payment/callback";
+        $vnp_ReturnUrl = env('FRONTEND_URL', 'https://website-thoi-trang.vercel.app') . "/payment/callback";
 
         date_default_timezone_set('Asia/Ho_Chi_Minh');
 
