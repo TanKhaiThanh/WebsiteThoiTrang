@@ -18,10 +18,8 @@ const ForgotPasswordPage = () => {
 
         try {
             const res = await api.post('/auth/forgot-password', { email });
-            // Mock Email Behavior: In production, send this via Mail Server
-            // For MVP, we will toast the token to the user for testing
-            if (res.data.reset_token) {
-                toast.success('Gửi yêu cầu Khôi phục thành công! Mã 6 số của bạn là: ' + res.data.reset_token, { duration: 10000 });
+            if (res.data.success) {
+                toast.success('Gửi yêu cầu thành công! Vui lòng kiểm tra hộp thư (hoặc mục Spam) của bạn.');
                 setStep(2);
             }
         } catch (error) {
@@ -38,10 +36,11 @@ const ForgotPasswordPage = () => {
         try {
             await api.post('/auth/reset-password', {
                 email,
-                token,
-                new_password: newPassword
+                otp: token,
+                password: newPassword,
+                password_confirmation: newPassword
             });
-            toast.success('Đặt lại mật khẩu thành công! Vui lòng đăng nhập bằng mật khẩu mới.');
+            toast.success('Đặt lại mật khẩu thành công! Vui lòng đăng nhập.');
             navigate('/login');
         } catch (error) {
             toast.error(error.response?.data?.error || 'Mã khôi phục không đúng hoặc đã hết hạn.');

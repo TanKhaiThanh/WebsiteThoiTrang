@@ -12,8 +12,8 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/google', [AuthController::class, 'googleLogin']);
 Route::post('/auth/verify-otp', [AuthController::class, 'verifyOtp']);
 Route::post('/auth/resend-otp', [AuthController::class, 'resendOtp']);
-Route::post('/auth/forgot-password', [\App\Http\Controllers\AuthController::class, 'forgotPassword']);
-Route::post('/auth/reset-password', [\App\Http\Controllers\AuthController::class, 'resetPassword']);
+Route::post('/auth/forgot-password', [\App\Http\Controllers\ForgotPasswordController::class, 'sendOtp']);
+Route::post('/auth/reset-password', [\App\Http\Controllers\ForgotPasswordController::class, 'resetPassword']);
 
 // Protected routes
 Route::middleware(\App\Http\Middleware\JwtMiddleware::class)->group(function () {
