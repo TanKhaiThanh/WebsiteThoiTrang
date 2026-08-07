@@ -6,14 +6,26 @@ import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const getFinalImageUrl = (url) => {
-    if (!url) return '';
+    if (!url) return "";
     let parsedUrl = url;
-    if (url.includes('/storage/uploads/products/')) parsedUrl = url.replace('/storage/uploads/products/', '/api/media/image/');
-    if (url.includes('/storage/uploads/banners/')) parsedUrl = url.replace('/storage/uploads/banners/', '/api/media/image/');
-    if (parsedUrl.startsWith('http')) return parsedUrl;
-    if (typeof import !== 'undefined' && import.meta && import.meta.env && import.meta.env.PROD) return parsedUrl;
-    const baseUrl = (typeof import !== 'undefined' && import.meta && import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:8000';
-    return ${baseUrl};
+    if (url.includes("/storage/uploads/products/")) parsedUrl = url.replace("/storage/uploads/products/", "/api/media/image/");
+    if (url.includes("/storage/uploads/banners/")) parsedUrl = url.replace("/storage/uploads/banners/", "/api/media/image/");
+    if (parsedUrl.startsWith("http")) return parsedUrl;
+    
+    if (import.meta.env && import.meta.env.PROD) return parsedUrl;
+    
+    const baseUrl = (import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL.replace(//api/?$/, "") : "http://localhost:8000";
+    return baseUrl + parsedUrl;
+};
+    let parsedUrl = url;
+    if (url.includes("/storage/uploads/products/")) parsedUrl = url.replace("/storage/uploads/products/", "/api/media/image/");
+    if (url.includes("/storage/uploads/banners/")) parsedUrl = url.replace("/storage/uploads/banners/", "/api/media/image/");
+    if (parsedUrl.startsWith("http")) return parsedUrl;
+    
+    if (import.meta.env && import.meta.env.PROD) return parsedUrl;
+    
+    const baseUrl = (import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL.replace(//api/?$/, "") : "http://localhost:8000";
+    return baseUrl + parsedUrl;
 };
 
 const CartPage = () => {
