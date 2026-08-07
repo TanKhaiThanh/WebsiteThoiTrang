@@ -27,15 +27,35 @@ const ProfilePage = () => {
         window.location.hash = activeTab;
     }, [activeTab]);
 
+    // Helper to parse existing address formatted as "Street, Ward, Province"
+    const parseAddress = (fullAddress) => {
+        if (!fullAddress) return { street: '', ward: '', province: '' };
+        const parts = fullAddress.split(',').map(p => p.trim());
+        if (parts.length >= 3) {
+            return {
+                province: parts[parts.length - 1],
+                ward: parts[parts.length - 2],
+                street: parts.slice(0, parts.length - 2).join(', ')
+            };
+        }
+        return { street: fullAddress, ward: '', province: '' };
+    };
+
+    const initialAddr = parseAddress(user?.address);
+
     // Profile State
     const [profileData, setProfileData] = useState({
         name: user?.name || '',
         phone: user?.phone || '',
-        address: user?.address || '',
+        province: initialAddr.province,
+        ward: initialAddr.ward,
+        street: initialAddr.street,
         password: '',
         new_password: ''
     });
     const [updatingProfile, setUpdatingProfile] = useState(false);
+
+    const [provinces, setProvinces] = useState([]);
 
     useEffect(() => {
         if (!user) {
@@ -49,16 +69,39 @@ const ProfilePage = () => {
                 setPointHistory(res.data.history);
             }).catch(console.error);
         }
+
+        // Fetch Provinces for Address Options
+        fetch('https://esgoo.net/api-tinhthanh/1/0.htm')
+            .then(res => res.json())
+            .then(data => {
+                if (data.error === 0) setProvinces(data.data);
+            })
+            .catch(console.error);
     }, [user, navigate]);
 
-    const handleProfileChange = (e) => setProfileData({ ...profileData, [e.target.name]: e.target.value });
+    const handleProfileChange = (e) => {
+        let { name, value } = e.target;
+        if (name === 'ward') {
+            value = value.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        }
+        setProfileData({ ...profileData, [name]: value });
+    };
 
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
+
+        if (!profileData.province) return (await import('sonner')).toast.error('Vui lòng chọn Tỉnh / Thành phố');
+        if (!profileData.ward.trim()) return (await import('sonner')).toast.error('Vui lòng nhập Phường / Xã');
+        if (!profileData.street.trim()) return (await import('sonner')).toast.error('Vui lòng nhập Số nhà, Tên đường');
+
         setUpdatingProfile(true);
         try {
             const { toast } = await import('sonner');
-            const res = await api.put('/auth/me', profileData);
+            const payload = {
+                ...profileData,
+                address: `${profileData.street}, ${profileData.ward}, ${profileData.province}`
+            };
+            const res = await api.put('/auth/me', payload);
             toast.success('Cập nhật hồ sơ thành công');
             if (res.data.user) {
                 localStorage.setItem('asmaw_user', JSON.stringify(res.data.user));
@@ -181,9 +224,24 @@ const ProfilePage = () => {
                                     <label className="form-label">Số điện thoại</label>
                                     <input type="tel" name="phone" className="form-input" value={profileData.phone} onChange={handleProfileChange} />
                                 </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                                    <div className="form-group">
+                                        <label className="form-label">Tỉnh / Thành Phố</label>
+                                        <select name="province" className="form-input" value={profileData.province} onChange={handleProfileChange} required>
+                                            <option value="">Chọn Tỉnh/Thành phố...</option>
+                                            {provinces.map(p => (
+                                                <option key={p.id} value={p.name}>{p.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Phường / Xã</label>
+                                        <input type="text" name="ward" className="form-input" placeholder="Ví dụ: Phường Bến Thành" value={profileData.ward} onChange={handleProfileChange} required />
+                                    </div>
+                                </div>
                                 <div className="form-group">
-                                    <label className="form-label">Địa chỉ mặc định</label>
-                                    <textarea name="address" className="form-input" rows="3" value={profileData.address} onChange={handleProfileChange}></textarea>
+                                    <label className="form-label">Số nhà, Tên đường</label>
+                                    <textarea name="street" className="form-input" rows="2" placeholder="Ví dụ: 141 Nguyễn Du" value={profileData.street} onChange={handleProfileChange} required></textarea>
                                 </div>
 
                                 <div style={{ height: '1px', backgroundColor: 'var(--color-border)', margin: '1rem 0' }}></div>
