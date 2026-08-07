@@ -107,6 +107,19 @@ const CheckoutPage = () => {
         if (errors[name]) setErrors({ ...errors, [name]: '' });
     };
 
+    const parseAddress = (fullAddress) => {
+        if (!fullAddress) return { street: '', ward: '', province: '' };
+        const parts = fullAddress.split(',').map(p => p.trim());
+        if (parts.length >= 3) {
+            return {
+                province: parts[parts.length - 1],
+                ward: parts[parts.length - 2],
+                street: parts.slice(0, parts.length - 2).join(', ')
+            };
+        }
+        return { street: fullAddress, ward: '', province: '' };
+    };
+
     const handleAutoFill = async (e) => {
         const checked = e.target.checked;
         setAutoFill(checked);
@@ -114,12 +127,14 @@ const CheckoutPage = () => {
             try {
                 const res = await api.get('/auth/me');
                 const profile = res.data.user || res.data;
+                const parsed = parseAddress(profile.address);
                 setFormData(prev => ({
                     ...prev,
                     customer_name: profile.name || prev.customer_name,
                     customer_phone: profile.phone || prev.customer_phone,
-                    // Try parsing old unified string if they only have that in DB
-                    street: profile.address || prev.street
+                    street: parsed.street || prev.street,
+                    ward: parsed.ward || prev.ward,
+                    province: parsed.province || prev.province
                 }));
                 toast.success('Đã điền thông tin tự động');
             } catch (error) {
