@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit, Trash2, Image as ImageIcon, CheckCircle, Tag, X, Upload, ChevronDown, ChevronRight } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'sonner';
@@ -12,9 +12,13 @@ const formatCurrency = (amount) => {
 // Fix Docker Windows Symlink by converting old /storage routes to direct /api/media stream
 const getFinalImageUrl = (url) => {
     if (!url) return '';
-    let parsedUrl = url.replace('/storage/uploads/products/', '/api/media/image/');
-    const baseUrl = import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '');
-    return parsedUrl.startsWith('http') ? parsedUrl : `${baseUrl}${parsedUrl}`;
+    let parsedUrl = url;
+    if (url.includes('/storage/uploads/products/')) parsedUrl = url.replace('/storage/uploads/products/', '/api/media/image/');
+    if (url.includes('/storage/uploads/banners/')) parsedUrl = url.replace('/storage/uploads/banners/', '/api/media/image/');
+    if (parsedUrl.startsWith('http')) return parsedUrl;
+    if (typeof import !== 'undefined' && import.meta && import.meta.env && import.meta.env.PROD) return parsedUrl;
+    const baseUrl = (typeof import !== 'undefined' && import.meta && import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:8000';
+    return ${baseUrl};
 };
 
 // ==============================================
@@ -834,3 +838,4 @@ const ProductManagePage = () => {
 };
 
 export default ProductManagePage;
+

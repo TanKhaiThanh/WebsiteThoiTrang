@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { toast } from 'sonner';
 import { Plus, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
 
 const getFinalImageUrl = (url) => {
     if (!url) return '';
-    let parsedUrl = url.replace('/storage/uploads/products/', '/api/media/image/');
-    return parsedUrl.startsWith('http') ? parsedUrl : `http://localhost:8000${parsedUrl}`;
+    let parsedUrl = url;
+    if (url.includes('/storage/uploads/products/')) parsedUrl = url.replace('/storage/uploads/products/', '/api/media/image/');
+    if (url.includes('/storage/uploads/banners/')) parsedUrl = url.replace('/storage/uploads/banners/', '/api/media/image/');
+    if (parsedUrl.startsWith('http')) return parsedUrl;
+    if (typeof import !== 'undefined' && import.meta && import.meta.env && import.meta.env.PROD) return parsedUrl;
+    const baseUrl = (typeof import !== 'undefined' && import.meta && import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:8000';
+    return ${baseUrl};
 };
 
 const BannerManagePage = () => {
@@ -205,3 +210,4 @@ const BannerManagePage = () => {
 };
 
 export default BannerManagePage;
+

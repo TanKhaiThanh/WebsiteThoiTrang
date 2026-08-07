@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Heart } from 'lucide-react';
@@ -10,7 +10,10 @@ const getFinalImageUrl = (url) => {
     let parsedUrl = url;
     if (url.includes('/storage/uploads/products/')) parsedUrl = url.replace('/storage/uploads/products/', '/api/media/image/');
     if (url.includes('/storage/uploads/banners/')) parsedUrl = url.replace('/storage/uploads/banners/', '/api/media/image/');
-    return parsedUrl.startsWith('http') ? parsedUrl : `http://localhost:8000${parsedUrl}`;
+    if (parsedUrl.startsWith('http')) return parsedUrl;
+    if (typeof import !== 'undefined' && import.meta && import.meta.env && import.meta.env.PROD) return parsedUrl;
+    const baseUrl = (typeof import !== 'undefined' && import.meta && import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:8000';
+    return ${baseUrl};
 };
 
 const ProductCard = ({ product }) => {
@@ -201,3 +204,4 @@ const HomePage = () => {
 };
 
 export default HomePage;
+
