@@ -14,7 +14,7 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with(['category', 'primaryImage', 'variants.inventory'])
+        $query = Product::with(['category', 'primaryImage', 'images', 'variants.inventory'])
             ->where('is_active', true);
         // Filter by specific IDs
         if ($request->has('ids')) {
