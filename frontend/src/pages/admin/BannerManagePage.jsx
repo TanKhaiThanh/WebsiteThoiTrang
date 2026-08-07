@@ -4,25 +4,15 @@ import { toast } from 'sonner';
 import { Plus, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
 
 const getFinalImageUrl = (url) => {
-    if (!url) return "";
+    if (!url) return '';
     let parsedUrl = url;
-    if (url.includes("/storage/uploads/products/")) parsedUrl = url.replace("/storage/uploads/products/", "/api/media/image/");
-    if (url.includes("/storage/uploads/banners/")) parsedUrl = url.replace("/storage/uploads/banners/", "/api/media/image/");
-    if (parsedUrl.startsWith("http")) return parsedUrl;
+    if (url.includes('/storage/uploads/products/')) parsedUrl = url.replace('/storage/uploads/products/', '/api/media/image/');
+    if (url.includes('/storage/uploads/banners/')) parsedUrl = url.replace('/storage/uploads/banners/', '/api/media/image/');
+    if (parsedUrl.startsWith('http')) return parsedUrl;
     
     if (import.meta.env && import.meta.env.PROD) return parsedUrl;
     
-    const baseUrl = (import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL.replace(//api/?$/, "") : "http://localhost:8000";
-    return baseUrl + parsedUrl;
-};
-    let parsedUrl = url;
-    if (url.includes("/storage/uploads/products/")) parsedUrl = url.replace("/storage/uploads/products/", "/api/media/image/");
-    if (url.includes("/storage/uploads/banners/")) parsedUrl = url.replace("/storage/uploads/banners/", "/api/media/image/");
-    if (parsedUrl.startsWith("http")) return parsedUrl;
-    
-    if (import.meta.env && import.meta.env.PROD) return parsedUrl;
-    
-    const baseUrl = (import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL.replace(//api/?$/, "") : "http://localhost:8000";
+    const baseUrl = (import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:8000';
     return baseUrl + parsedUrl;
 };
 
