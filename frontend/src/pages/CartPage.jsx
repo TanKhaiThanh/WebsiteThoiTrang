@@ -63,14 +63,10 @@ const CartPage = () => {
                         </thead>
                         <tbody>
                             {cart.items.map(item => {
-                                const productImage = item.product_details?.primary_image?.url
-                                    ? getFinalImageUrl(item.product_details.primary_image.url)
-                                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.product_details?.name || item.product_name || 'Item')}&background=random`;
-
                                 const productName = item.product_details?.name || item.product_name || `Product #${item.product_id}`;
 
-                                let variantColor = '-';
-                                let variantSize = '-';
+                                let variantColor = "-";
+                                let variantSize = "-";
                                 if (item.product_details && item.variant_id) {
                                     const variant = item.product_details.variants?.find(v => v.id === item.variant_id);
                                     if (variant) {
@@ -78,6 +74,23 @@ const CartPage = () => {
                                         variantSize = variant.size || variantSize;
                                     }
                                 }
+
+                                const normalizeString = (str) => str ? String(str).trim().normalize("NFC").toLowerCase() : "";
+                                const normVarColor = normalizeString(variantColor);
+                                
+                                let variantImageUrl = null;
+                                if (normVarColor && normVarColor !== "-" && item.product_details?.images) {
+                                    const matchedImage = item.product_details.images.find(img => normalizeString(img.color) === normVarColor);
+                                    if (matchedImage) {
+                                        variantImageUrl = matchedImage.url;
+                                    }
+                                }
+
+                                const productImage = variantImageUrl 
+                                    ? getFinalImageUrl(variantImageUrl)
+                                    : (item.product_details?.primary_image?.url
+                                        ? getFinalImageUrl(item.product_details.primary_image.url)
+                                        : `https://ui-avatars.com/api/?name=${encodeURIComponent(productName)}&background=random`);
 
                                 return (
                                     <tr key={item.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
