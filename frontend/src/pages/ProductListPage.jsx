@@ -12,8 +12,32 @@ const ProductListPage = () => {
     const [products, setProducts] = useState([]);
     const [pagination, setPagination] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
 
     const { toggleWishlist, isWishlisted } = useWishlist();
+
+    const loadMoreProducts = async () => {
+        if (!pagination || pagination.current_page >= pagination.last_page) return;
+        setLoadingMore(true);
+        try {
+            const params = new URLSearchParams(location.search);
+            params.set('page', pagination.current_page + 1);
+            const res = await api.get(`/products?${params.toString()}`);
+
+            // Xóa duplicate nhỡ lúc load bị trùng lặp thời gian thực
+            setProducts(prev => {
+                const newProducts = res.data.data;
+                const existingIds = new Set(prev.map(p => p.id));
+                const uniqueNewProducts = newProducts.filter(p => !existingIds.has(p.id));
+                return [...prev, ...uniqueNewProducts];
+            });
+            setPagination(res.data);
+        } catch (error) {
+            console.error('Failed to load more products:', error);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
 
     // Dynamic Filter Data from Backend
     const [categories, setCategories] = useState([]);
@@ -414,11 +438,16 @@ const ProductListPage = () => {
                                 ))}
                             </div>
 
-                            {/* Pagination Load More Mockup */}
-                            {pagination && pagination.next_page_url && (
+                            {/* Pagination Load More Real */}
+                            {pagination && pagination.current_page < pagination.last_page && (
                                 <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4rem' }}>
-                                    <button style={{ border: '1px solid #111', background: 'transparent', padding: '1rem 3rem', fontSize: '0.8rem', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.3s' }} onMouseOver={e => { e.currentTarget.style.background = '#111'; e.currentTarget.style.color = '#fff' }} onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#111' }}>
-                                        Xem thêm sản phẩm
+                                    <button
+                                        onClick={loadMoreProducts}
+                                        disabled={loadingMore}
+                                        style={{ border: '1px solid #111', background: 'transparent', padding: '1rem 3rem', fontSize: '0.8rem', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase', cursor: loadingMore ? 'wait' : 'pointer', opacity: loadingMore ? 0.7 : 1, transition: 'all 0.3s' }}
+                                        onMouseOver={e => { if (!loadingMore) { e.currentTarget.style.background = '#111'; e.currentTarget.style.color = '#fff' } }}
+                                        onMouseOut={e => { if (!loadingMore) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#111' } }}>
+                                        {loadingMore ? 'Đang tải...' : 'Xem thêm sản phẩm'}
                                     </button>
                                 </div>
                             )}
