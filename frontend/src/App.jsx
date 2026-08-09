@@ -47,7 +47,6 @@ import ShippingConfigPage from './pages/admin/ShippingConfigPage';
 
 const PublicLayout = () => (
     <div className="flex flex-col" style={{ minHeight: '100vh' }}>
-        <Toaster position="top-center" richColors />
         <Header />
         <main style={{ flex: 1, paddingBottom: '4rem' }}>
             <Outlet />
@@ -69,6 +68,7 @@ function App() {
                     <CartProvider>
                         <Router>
                             <ScrollToTop />
+                            <Toaster position="top-center" richColors />
                             <Routes>
                                 {/* 1. Public Routes with Header & Footer */}
                                 <Route element={<PublicLayout />}>
