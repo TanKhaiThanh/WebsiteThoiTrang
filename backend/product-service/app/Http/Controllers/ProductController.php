@@ -50,10 +50,10 @@ class ProductController extends Controller
 
         // Price range
         if ($request->has('min_price')) {
-            $query->where('price', '>=', $request->min_price);
+            $query->whereRaw('COALESCE(sale_price, price) >= ?', [$request->min_price]);
         }
         if ($request->has('max_price')) {
-            $query->where('price', '<=', $request->max_price);
+            $query->whereRaw('COALESCE(sale_price, price) <= ?', [$request->max_price]);
         }
 
         // Filter by variants (sizes and colors)
@@ -83,7 +83,12 @@ class ProductController extends Controller
         // Sort
         $sortBy = $request->get('sort', 'created_at');
         $sortDir = $request->get('order', 'desc');
-        $query->orderBy($sortBy, $sortDir);
+        
+        if ($sortBy === 'price') {
+            $query->orderByRaw("COALESCE(sale_price, price) {$sortDir}");
+        } else {
+            $query->orderBy($sortBy, $sortDir);
+        }
 
         return response()->json($query->paginate($request->get('per_page', 12)));
     }
