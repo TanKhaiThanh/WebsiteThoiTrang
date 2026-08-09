@@ -187,6 +187,40 @@ const ProductListPage = () => {
         return baseUrl + parsedUrl;
     };
 
+    const renderCategoryTree = (catList, level = 0) => {
+        return (
+            <ul style={{ listStyle: 'none', padding: level === 0 ? 0 : '0 0 0 1.75rem', margin: 0, display: 'flex', flexDirection: 'column', gap: level === 0 ? '1rem' : '0.6rem' }}>
+                {catList.map(cat => {
+                    const isExpanded = expandedCategories.includes(cat.id);
+                    const hasChildren = cat.children && cat.children.length > 0;
+                    return (
+                        <li key={cat.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    <CustomCheckbox
+                                        id={`cat-${cat.id}`}
+                                        label={level === 0 ? <strong style={{ fontSize: '0.95rem' }}>{cat.name}</strong> : <span style={{ color: level === 1 ? '#4b5563' : '#6b7280', fontSize: level === 1 ? '0.9rem' : '0.85rem' }}>{cat.name}</span>}
+                                        checked={selectedCategories.includes(cat.id.toString())}
+                                        onChange={() => toggleCategory(cat.id.toString())}
+                                    />
+                                </div>
+                                {hasChildren && (
+                                    <button
+                                        onClick={() => toggleExpand(cat.id)}
+                                        style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '0.2rem', color: '#6b7280' }}
+                                    >
+                                        {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                    </button>
+                                )}
+                            </div>
+                            {hasChildren && isExpanded && renderCategoryTree(cat.children, level + 1)}
+                        </li>
+                    )
+                })}
+            </ul>
+        );
+    };
+
     return (
         <div style={{ backgroundColor: '#fff', color: '#111' }}>
             {/* HERO SECTION / HEADER */}
@@ -214,49 +248,7 @@ const ProductListPage = () => {
                     {/* Danh mục */}
                     <div>
                         <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600, borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>Phân loại</h3>
-                        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {categories.map(cat => {
-                                const isExpanded = expandedCategories.includes(cat.id);
-                                const hasChildren = cat.children && cat.children.length > 0;
-                                return (
-                                    <li key={cat.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                <CustomCheckbox
-                                                    id={`cat-${cat.id}`}
-                                                    label={<strong style={{ fontSize: '0.95rem' }}>{cat.name}</strong>}
-                                                    checked={selectedCategories.includes(cat.id.toString())}
-                                                    onChange={() => toggleCategory(cat.id.toString())}
-                                                />
-                                            </div>
-                                            {hasChildren && (
-                                                <button
-                                                    onClick={() => toggleExpand(cat.id)}
-                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '0.2rem', color: '#6b7280' }}
-                                                >
-                                                    {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {hasChildren && isExpanded && (
-                                            <ul style={{ listStyle: 'none', padding: '0 0 0 1.75rem', margin: 0, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                                                {cat.children.map(child => (
-                                                    <li key={child.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                        <CustomCheckbox
-                                                            id={`cat-${child.id}`}
-                                                            label={<span style={{ color: '#4b5563', fontSize: '0.9rem' }}>{child.name}</span>}
-                                                            checked={selectedCategories.includes(child.id.toString())}
-                                                            onChange={() => toggleCategory(child.id.toString())}
-                                                        />
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                    </li>
-                                )
-                            })}
-                        </ul>
+                        {renderCategoryTree(categories)}
                     </div>
 
                     {/* Kích thước */}
