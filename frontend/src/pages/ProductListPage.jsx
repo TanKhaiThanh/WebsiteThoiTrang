@@ -55,7 +55,12 @@ const ProductListPage = () => {
                 const catRes = await api.get('/categories');
                 const filRes = await api.get('/products/filters');
 
-                setCategories(catRes.data.categories || []);
+                const fetchedCategories = catRes.data.categories || [];
+                setCategories(fetchedCategories);
+                setExpandedCategories(prev => {
+                    const allCatIds = fetchedCategories.map(c => c.id);
+                    return [...new Set([...prev, ...allCatIds])];
+                });
 
                 const rawSizes = filRes.data.sizes || [];
                 const sortedSizes = rawSizes.sort((a, b) => {
@@ -170,17 +175,17 @@ const ProductListPage = () => {
     // Helper functions
     const formatPrice = (val) => new Intl.NumberFormat('vi-VN').format(val) + 'đ';
     const getFinalImageUrl = (url) => {
-    if (!url) return '';
-    let parsedUrl = url;
-    if (url.includes('/storage/uploads/products/')) parsedUrl = url.replace('/storage/uploads/products/', '/api/media/image/');
-    if (url.includes('/storage/uploads/banners/')) parsedUrl = url.replace('/storage/uploads/banners/', '/api/media/image/');
-    if (parsedUrl.startsWith('http')) return parsedUrl;
-    
-    if (import.meta.env && import.meta.env.PROD) return parsedUrl;
-    
-    const baseUrl = (import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:8000';
-    return baseUrl + parsedUrl;
-};
+        if (!url) return '';
+        let parsedUrl = url;
+        if (url.includes('/storage/uploads/products/')) parsedUrl = url.replace('/storage/uploads/products/', '/api/media/image/');
+        if (url.includes('/storage/uploads/banners/')) parsedUrl = url.replace('/storage/uploads/banners/', '/api/media/image/');
+        if (parsedUrl.startsWith('http')) return parsedUrl;
+
+        if (import.meta.env && import.meta.env.PROD) return parsedUrl;
+
+        const baseUrl = (import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:8000';
+        return baseUrl + parsedUrl;
+    };
 
     return (
         <div style={{ backgroundColor: '#fff', color: '#111' }}>
