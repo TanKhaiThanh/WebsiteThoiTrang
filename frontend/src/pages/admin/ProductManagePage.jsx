@@ -16,9 +16,9 @@ const getFinalImageUrl = (url) => {
     if (url.includes('/storage/uploads/products/')) parsedUrl = url.replace('/storage/uploads/products/', '/api/media/image/');
     if (url.includes('/storage/uploads/banners/')) parsedUrl = url.replace('/storage/uploads/banners/', '/api/media/image/');
     if (parsedUrl.startsWith('http')) return parsedUrl;
-    
+
     if (import.meta.env && import.meta.env.PROD) return parsedUrl;
-    
+
     const baseUrl = (import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:8000';
     return baseUrl + parsedUrl;
 };
@@ -100,7 +100,9 @@ const ProductFormModal = ({ onClose, onSuccess, initialData, categories }) => {
         categoryCode = categoryCode.substring(0, 3).toUpperCase();
 
         // Remove accents for product name code
-        let productCode = formData.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '').substring(0, 5).toUpperCase() || 'PROD';
+        let baseName = formData.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '').substring(0, 5).toUpperCase() || 'PROD';
+        const uniqueSuffix = Math.floor(100 + Math.random() * 900).toString(); // 3 số ngẫu nhiên
+        let productCode = `${baseName}-${uniqueSuffix}`;
 
         colorsToUse.forEach(color => {
             sizesToUse.forEach(size => {
