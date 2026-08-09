@@ -150,8 +150,8 @@ class ProductController extends Controller
             'brand' => 'nullable|string|max:100',
             'material' => 'nullable|string|max:100',
             'variants' => 'nullable|array',
-            'variants.*.color' => 'required_with:variants|string',
-            'variants.*.size' => 'required_with:variants|string',
+            'variants.*.color' => 'nullable|string',
+            'variants.*.size' => 'nullable|string',
             'variants.*.sku' => 'required_with:variants|string|unique:product_variants,sku',
             'variants.*.qty' => 'nullable|integer|min:0',
         ]);
