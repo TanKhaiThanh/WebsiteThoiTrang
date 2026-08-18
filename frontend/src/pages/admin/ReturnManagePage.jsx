@@ -114,8 +114,8 @@ const ReturnManagePage = () => {
                                                 <div>
                                                     <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{req.order?.items?.[0]?.product_name || 'Đơn hàng mồ côi'}</div>
                                                     <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                                                        SKU: {req.order?.items?.[0]?.sku || 'N/A'} - SL: x{req.order?.items?.[0]?.quantity || 1}
-                                                        {req.order?.items?.length > 1 && ` (+${req.order.items.length - 1} mã khác)`}
+                                                        Phân loại: {req.order?.items?.[0]?.variant_info || 'Mặc định'} - SL: x{req.order?.items?.[0]?.quantity || 1}
+                                                        {req.order?.items?.length > 1 && ` (+${req.order.items.length - 1} SP khác)`}
                                                     </div>
                                                 </div>
                                             </div>
