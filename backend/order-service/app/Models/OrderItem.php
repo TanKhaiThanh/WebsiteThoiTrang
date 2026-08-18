@@ -14,6 +14,6 @@ class OrderItem extends Model
         return \Illuminate\Support\Facades\DB::table('product_images')
             ->where('product_id', $this->product_id)
             ->orderByDesc('is_primary')
-            ->value('image_path');
+            ->value('url');
     }
 }
