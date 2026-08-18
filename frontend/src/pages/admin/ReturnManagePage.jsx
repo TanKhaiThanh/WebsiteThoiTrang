@@ -127,6 +127,19 @@ const ReturnManagePage = () => {
                                             <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
                                                 Đề xuất: {req.action === 'refund' ? 'Hoàn tiền' : 'Đổi mới'}
                                             </div>
+                                            {req.proof_images && req.proof_images.length > 0 && (
+                                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                                                    {req.proof_images.map((img, idx) => (
+                                                        <a key={idx} href={img.startsWith('http') ? img : (import.meta.env.PROD ? '/api' + img : 'http://localhost:8000' + img)} target="_blank" rel="noopener noreferrer">
+                                                            <img
+                                                                src={img.startsWith('http') ? img : (import.meta.env.PROD ? '/api' + img : 'http://localhost:8000' + img)}
+                                                                alt={`Proof ${idx}`}
+                                                                style={{ width: '45px', height: '45px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                                                            />
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </td>
                                         <td style={{ padding: '1rem' }}>
                                             <span style={{
