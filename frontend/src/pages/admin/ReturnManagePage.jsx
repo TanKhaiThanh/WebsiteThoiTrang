@@ -108,9 +108,17 @@ const ReturnManagePage = () => {
                                         </td>
                                         <td style={{ padding: '1rem' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                <div style={{ width: 40, height: 40, backgroundColor: '#f1f5f9', borderRadius: '4px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                                    <RefreshCw size={20} color="#94a3b8" />
-                                                </div>
+                                                {req.order?.items?.[0]?.product_image ? (
+                                                    <img
+                                                        src={req.order.items[0].product_image.startsWith('http') ? req.order.items[0].product_image : (import.meta.env.PROD ? '/api' : 'http://localhost:8000') + (req.order.items[0].product_image.includes('/storage/uploads/products') ? req.order.items[0].product_image.replace('/storage/uploads/products', '/media/image') : req.order.items[0].product_image)}
+                                                        alt="Sản phẩm"
+                                                        style={{ width: 45, height: 45, objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--color-border)' }}
+                                                    />
+                                                ) : (
+                                                    <div style={{ width: 45, height: 45, backgroundColor: '#f1f5f9', borderRadius: '4px', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--color-border)' }}>
+                                                        <RefreshCw size={20} color="#94a3b8" />
+                                                    </div>
+                                                )}
                                                 <div>
                                                     <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{req.order?.items?.[0]?.product_name || 'Đơn hàng mồ côi'}</div>
                                                     <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
