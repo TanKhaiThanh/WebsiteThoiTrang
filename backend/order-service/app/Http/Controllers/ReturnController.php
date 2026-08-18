@@ -50,16 +50,19 @@ class ReturnController extends Controller
         $return->order->update(['status' => 'returned', 'payment_status' => 'refunded']);
 
         // RESTOCK / RELEASE inventory back to Product Service
-        if ($return->order && $return->order->items) {
+        $orderWithItems = $return->order;
+        if ($orderWithItems) {
+            $orderWithItems->load('items');
             $payload = [
-                'items' => $return->order->items->map(function($i) {
+                'items' => $orderWithItems->items->map(function($i) {
                     return ['variant_id' => $i->variant_id, 'qty' => $i->quantity];
                 })->toArray()
             ];
             
             try {
-                \Illuminate\Support\Facades\Http::withToken($request->bearerToken())
+                $response = \Illuminate\Support\Facades\Http::withToken($request->bearerToken())
                     ->post('http://asmaw-product-service:8002/api/inventory/release', $payload);
+                \Illuminate\Support\Facades\Log::info('Approve Return Restock HTTP Status: ' . $response->status() . ' Body: ' . $response->body());
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Approve Return Restock failed: ' . $e->getMessage());
             }
