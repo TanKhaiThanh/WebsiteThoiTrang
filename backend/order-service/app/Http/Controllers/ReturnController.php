@@ -27,7 +27,7 @@ class ReturnController extends Controller
 
     public function index(Request $request)
     {
-        $query = ReturnRequest::with('order');
+        $query = ReturnRequest::with(['order.items']);
         $role = $request->input('auth_user_role');
 
         if (!in_array($role, ['admin', 'staff'])) {

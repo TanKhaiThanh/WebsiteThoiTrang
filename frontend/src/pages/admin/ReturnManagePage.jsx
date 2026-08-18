@@ -101,7 +101,7 @@ const ReturnManagePage = () => {
                                     <tr key={req.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                                         <td style={{ padding: '1rem' }}>
                                             <div style={{ fontWeight: 600 }}>#{req.id}</div>
-                                            <div style={{ fontSize: '0.85rem', color: '#2563eb', fontWeight: 500 }}>Đơn: {req.order?.order_code || 'Không rõ'}</div>
+                                            <div style={{ fontSize: '0.85rem', color: '#2563eb', fontWeight: 500 }}>Đơn: {req.order?.order_number || 'Không rõ'}</div>
                                             <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
                                                 {new Date(req.created_at).toLocaleString('vi-VN')}
                                             </div>
@@ -112,8 +112,11 @@ const ReturnManagePage = () => {
                                                     <RefreshCw size={20} color="#94a3b8" />
                                                 </div>
                                                 <div>
-                                                    <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{req.order_item?.product_name || 'Hàng hoàn'}</div>
-                                                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>SKU: {req.order_item?.sku || 'N/A'} - SL: x{req.order_item?.quantity || 1}</div>
+                                                    <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{req.order?.items?.[0]?.product_name || 'Đơn hàng mồ côi'}</div>
+                                                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                                                        SKU: {req.order?.items?.[0]?.sku || 'N/A'} - SL: x{req.order?.items?.[0]?.quantity || 1}
+                                                        {req.order?.items?.length > 1 && ` (+${req.order.items.length - 1} mã khác)`}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
