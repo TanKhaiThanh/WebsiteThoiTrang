@@ -87,4 +87,33 @@ class CouponController extends Controller
             'discount' => $discount,
         ]);
     }
+
+    /**
+     * Record coupon usage (called internally by order-service)
+     */
+    public function use_coupon(Request $request)
+    {
+        $request->validate([
+            'code' => 'required|string',
+            'order_id' => 'required|integer',
+            'discount_amount' => 'required|numeric'
+        ]);
+
+        $coupon = Coupon::where('code', $request->code)->first();
+        if (!$coupon) {
+            return response()->json(['error' => 'Coupon not found'], 404);
+        }
+
+        $coupon->increment('used_count');
+
+        $userId = $request->input('auth_user_id');
+        CouponUsage::create([
+            'coupon_id' => $coupon->id,
+            'user_id' => $userId, // null if guest
+            'order_id' => $request->order_id,
+            'discount_amount' => $request->discount_amount
+        ]);
+
+        return response()->json(['message' => 'Coupon used successfully']);
+    }
 }

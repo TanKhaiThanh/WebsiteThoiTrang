@@ -152,6 +152,21 @@ class OrderController extends Controller
             $order->items()->create($item);
         }
 
+        // Notify promotion-service to record coupon usage (if used)
+        if ($request->filled('coupon_code') && $voucherDiscount > 0) {
+            try {
+                \Illuminate\Support\Facades\Http::withToken($token)
+                    ->post('http://asmaw-promotion-service:8004/api/coupons/use', [
+                        'code' => $request->coupon_code,
+                        'order_id' => $order->id,
+                        'discount_amount' => $voucherDiscount
+                    ]);
+            } catch (\Exception $e) {
+                // Log and swallow error, don't break order creation
+                \Illuminate\Support\Facades\Log::error('Failed to update coupon usage: ' . $e->getMessage()); 
+            }
+        }
+
         // Auto-clear cart after successful order creation
         $userId = $request->input('auth_user_id');
         $sessionId = $request->header('X-Session-ID');

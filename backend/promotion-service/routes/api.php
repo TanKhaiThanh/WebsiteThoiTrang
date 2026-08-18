@@ -8,6 +8,9 @@ Route::get('/health', fn() => response()->json(['status' => 'ok', 'service' => '
 Route::middleware(\App\Http\Middleware\JwtMiddleware::class)->group(function () {
     // Coupon validation (Customer)
     Route::post('/coupons/validate', [\App\Http\Controllers\CouponController::class, 'validate_coupon']);
+    
+    // Internal: use coupon (called by order-service)
+    Route::post('/coupons/use', [\App\Http\Controllers\CouponController::class, 'use_coupon']);
 
     // Points
     Route::get('/points/{userId}', [\App\Http\Controllers\PointController::class, 'show']);
