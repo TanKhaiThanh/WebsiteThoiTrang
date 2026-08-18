@@ -129,7 +129,7 @@ class InventoryController extends Controller
             Inventory::where('variant_id', $item['variant_id'])
                 ->update([
                     'available_qty' => DB::raw("available_qty + {$item['qty']}"),
-                    'reserved_qty' => DB::raw("GREATEST(reserved_qty - {$item['qty']}, 0)"),
+                    'reserved_qty' => DB::raw("CASE WHEN reserved_qty >= {$item['qty']} THEN reserved_qty - {$item['qty']} ELSE 0 END"),
                 ]);
         }
 
@@ -146,7 +146,7 @@ class InventoryController extends Controller
         foreach ($items as $item) {
             Inventory::where('variant_id', $item['variant_id'])
                 ->update([
-                    'reserved_qty' => DB::raw("GREATEST(reserved_qty - {$item['qty']}, 0)")
+                    'reserved_qty' => DB::raw("CASE WHEN reserved_qty >= {$item['qty']} THEN reserved_qty - {$item['qty']} ELSE 0 END")
                 ]);
         }
 
