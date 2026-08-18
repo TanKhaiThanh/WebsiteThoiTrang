@@ -11,7 +11,8 @@ class OrderItem extends Model
 
     public function getProductImageAttribute()
     {
-        return \Illuminate\Support\Facades\DB::table('product_images')
+        $productDb = env('DB_PRODUCT_DATABASE', 'product_db');
+        return \Illuminate\Support\Facades\DB::table($productDb . '.product_images')
             ->where('product_id', $this->product_id)
             ->orderByDesc('is_primary')
             ->value('url');
